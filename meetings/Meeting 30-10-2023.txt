@@ -1,0 +1,5 @@
+client not connected, drop packet by server as host unreachable
+state diagram of packets
+report discussion about performance; throughput
+inter process communications; only root for packet listener
+git in onedrive
