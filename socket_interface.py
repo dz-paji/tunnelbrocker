@@ -4,7 +4,7 @@ import configparser
 import logging
 import time
 
-class PacketSniffer:
+class SocketInterface:
     __protocols = []
     __config = configparser.ConfigParser()
     __logger = logging.getLogger("sniffer")
