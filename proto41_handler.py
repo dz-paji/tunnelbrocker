@@ -9,6 +9,8 @@ class Proto41Handler:
     handler_type = "proto41"
     handle_protocol = 41
     __config = configparser.ConfigParser()
+    tunnel_map = {('src', 'dest'): 'endpoint'} # src as the server ipv6 address, dest as the client ipv6 address.
+    
     def __init__(self):
         self.__config.read('config/app.ini')
     
@@ -31,7 +33,6 @@ class Proto41Handler:
         
         ipv6_packet = packet[20:]
         ipv6_header = struct.unpack('!IHBB16s16s', ipv6_packet[:40])
-        next_header = ipv6_header[3]
         payload_length = ipv6_header[1] #　for reassembling fragmented packets
         src_ipv6 = ipv6_header[4]
         dst_ipv6 = ipv6_header[5]
@@ -47,14 +48,12 @@ class Proto41Handler:
         if ipaddress.ip_address(src_ipv6).subnet_of(ipaddress.ip_network(rfc3513_addresses)):
             if not ipaddress.ip_address(src_ipv6).subnet_of(ipaddress.ip_network("::/128")):
                 logging.error("Discard the packet as its src address is a RFC3513 address")
+                return None
                 
         # handles next header
-
-        
-        ipv6_header[4] = self.__config['Interface']['IPv6_Address']
-        
+                
         # need to use a soft state table to keeping track of the packets
-        
+        self.tunnel_map.update((dst_ipv6, src_ipv6), src_ipv6)
             
         # recalculating length as IPv4 header might be padded
         new_payload_length = len(ipv6_packet) + 40 
@@ -63,6 +62,29 @@ class Proto41Handler:
         
         packet = ipv6_header_raw + ipv6_packet
         return packet
+    
+    def encapsulate(self, packet):
+        ipv6_header = struct.unpack('!IHBB16s16s', packet[:40])
+        src_ipv6 = ipv6_header[4]
+        dst_ipv6 = ipv6_header[5]
+        endpoint = self.tunnel_map.get((src_ipv6, dst_ipv6))
+
+        
+        # TODO: fragmentation
+        id = 11451
+        flags = 0
+        fragment_offset = 0
+        ttl = 64
+
+        src_ip = self.__config.get('Interface', 'IPv4_Address')
+        dst_ip = endpoint
+        total_length = 5 * 4 + len(packet)
+        src_ip = socket.inet_aton(src_ip)
+        dst_ip = socket.inet_aton(dst_ip)
+
+        ip_header = struct.pack('!BBHHHBBH4s4s', (4 << 4) + 5, 0, total_length, id, flags << 13 + fragment_offset, ttl, 41, 0, src_ip, dst_ip)
+
+        return ip_header + packet
         
 if __name__ == '__main__':
     print(128 * '1')
