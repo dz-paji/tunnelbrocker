@@ -17,7 +17,7 @@ class SocketInterface:
 
         # create a raw socket
         self.raw_socket = socket.socket(socket.PF_PACKET, socket.SOCK_RAW, socket.htons(0x0800))
-        # self.raw_socket.bind(('enp0s3', 0))
+        self.raw_socket.bind(('enp0s3', 0))
         
         # self.add_protocol() deprecated by add_handler()
 
@@ -64,8 +64,10 @@ class SocketInterface:
         self.__handler = handler
         self.__logger.info("%s handler added", handler.handler_type)
         
-    def inject(self, packet):        
-        self.raw_socket.send(packet)
+    def inject(self, packet):
+        
+        socks_af_inet = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
+        socks_af_inet.sendto(packet, ("10.0.2.2", 0))
         logging.info("Packet injected")                
 
 

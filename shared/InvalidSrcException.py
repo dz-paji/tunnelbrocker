@@ -1,0 +1,2 @@
+class InvalidSrcException(Exception):
+    pass
