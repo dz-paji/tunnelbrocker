@@ -66,7 +66,7 @@ class Proto41Handler:
         ipv6_header_raw = struct.pack('!IHBB16s16s', ipv6_header[0], ipv6_header[1], ipv6_header[2], ipv6_header[3], ipv6_header[4], ipv6_header[5])
         
         new_packet = ipv6_header_raw + ipv6_packet
-        return new_packet
+        return new_packet, dst_ipv6
     
     def encapsulate(self, packet):
         ipv6_header = struct.unpack('!IHBB16s16s', packet[:40])
@@ -88,12 +88,12 @@ class Proto41Handler:
         src_ip_v4 = self.__config.get('Interface', 'IPv4_Address')
         dst_ip_v4 = endpoint_v4
         total_length_v4 = 5 * 4 + len(packet)
-        src_ip_v4 = socket.inet_aton(src_ip_v4)
-        dst_ip_v4 = socket.inet_aton(dst_ip_v4)
+        b_src_ip_v4 = socket.inet_aton(src_ip_v4)
+        b_dst_ip_v4 = socket.inet_aton(dst_ip_v4)
 
-        ipv4_header = struct.pack('!BBHHHBBH4s4s', (4 << 4) + 5, 0, total_length_v4, id, flags << 13 + fragment_offset, ttl, 41, 0, src_ip_v4, dst_ip_v4)
+        ipv4_header = struct.pack('!BBHHHBBH4s4s', (4 << 4) + 5, 0, total_length_v4, id, flags << 13 + fragment_offset, ttl, 41, 0, b_src_ip_v4, b_dst_ip_v4)
 
-        return ipv4_header + packet
+        return ipv4_header + packet, dst_ip_v4
         
 if __name__ == '__main__':
     try:

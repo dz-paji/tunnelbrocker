@@ -18,6 +18,7 @@ class SocketInterface:
         # create a raw socket
         self.raw_socket = socket.socket(socket.PF_PACKET, socket.SOCK_RAW, socket.htons(0x0800))
         self.raw_socket.bind(('enp0s3', 0))
+        self.socket_inet_raw = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
         
         # self.add_protocol() deprecated by add_handler()
 
@@ -38,11 +39,15 @@ class SocketInterface:
                     print("IPv4 packet with protocol " + str(protocol) + " received from " + socket.inet_ntoa(header[9]) + " at " + time.strftime("%H:%M:%S", time.localtime()))
                     if self.__handler.validate(packet):
                         print("Validated")
-                        ipv6_packet = self.__handler.decapsulate(packet)
+                        ipv6_packet, dst_ipv6 = self.__handler.decapsulate(packet)
                         
                         if ipv6_packet != None:
                             # silently discard the packet
-                            self.inject(ipv6_packet)
+                            self.inject(ipv6_packet, dst_ipv6)
+            elif version == 6:
+                packet_6in4, dst_v4 = self.__handler.encapsulate(packet)
+                if packet_6in4 != None:
+                    self.inject(packet_6in4, dst_v4)
                 
     # def add_protocol(self):
     # ''' deprecated by add_handler()
@@ -64,11 +69,9 @@ class SocketInterface:
         self.__handler = handler
         self.__logger.info("%s handler added", handler.handler_type)
         
-    def inject(self, packet):
-        
-        socks_af_inet = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
-        socks_af_inet.sendto(packet, ("10.0.2.2", 0))
-        logging.info("Packet injected")                
+    def inject(self, packet, dst):
+        self.socket_inet_raw.sendto(packet, (dst, 0))
+        logging.debug("Packet sent")                
 
 
 if __name__ == '__main__':
