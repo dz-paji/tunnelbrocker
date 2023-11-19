@@ -61,12 +61,13 @@ class PacketFilter:
                 continue
 
             this_prefix_v6 = i.split(" - ")[0]
-            this_endpoint_v4 = i.split(" - ")[1]
+            this_endpoint_v4 = i.split(" - ")[1].strip()
             self.allocations.update({this_prefix_v6: this_endpoint_v4})
                         
     def lookup_endpoint(self, prefix_v6) -> str:
         query_prefix_v6 = ipaddress.ip_network(prefix_v6)
         for i in self.allocations:
+            # self.logger.debug("lookup endpoint for %s against %s", query_prefix_v6, ipaddress.ip_network(i))
             if query_prefix_v6.subnet_of(ipaddress.ip_network(i)):
                 return self.allocations[i]
             

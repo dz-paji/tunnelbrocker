@@ -30,11 +30,11 @@ if __name__ == '__main__':
     fragment_offset = 0
     ttl = 64
 
-    src_ip_v4 = socket.inet_aton("10.0.2.15")
-    dst_ip_v4 = socket.inet_aton("10.0.2.2")
+    src_ip_v4 = socket.inet_aton("10.0.2.4")
+    dst_ip_v4 = socket.inet_aton("10.0.2.5")
     total_length_v4 = 5 * 4 + len(payload)
 
     ipv4_header = struct.pack('!BBHHHBBH4s4s', (4 << 4) + 5, 0, total_length_v4, id, flags << 13 + fragment_offset, ttl, 41, 0, src_ip_v4, dst_ip_v4)
 
     packet = ipv4_header + payload
-    socks.inject(packet)
+    socks.inject4(packet, "10.0.2.5")
