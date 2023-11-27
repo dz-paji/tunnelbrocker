@@ -33,7 +33,8 @@ class HeartbeatHandler:
             
     def tick(self):
         '''
-        Do I need to consider concurrency here?
+        Do I need to consider concurrency here? - Yes.
+        check bool
         '''
         while True:
             for i in self.heartbeat_info:

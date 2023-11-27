@@ -73,7 +73,7 @@ class PacketFilter:
         Update tunnel information from heartbeat
         '''
         
-        prefix_v6 = ipaddress.ip_network(prefix_v6)\
+        prefix_v6 = ipaddress.ip_network(prefix_v6)
             
         if self.allocations.get(prefix_v6) is not None:
             self.allocations.update({prefix_v6: endpoint_v4})
