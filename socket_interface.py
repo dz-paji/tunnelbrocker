@@ -22,6 +22,7 @@ class SocketInterface:
         self.raw_socket_v4 = socket.socket(socket.PF_PACKET, socket.SOCK_RAW, socket.htons(0x0800))
         self.raw_socket_v4.bind(('enp0s3', 0))  # TODO: read from config file
         self.raw_socket_v6 = socket.socket(socket.PF_PACKET, socket.SOCK_RAW, socket.htons(0x86DD))
+        self.raw_socket_v6.setsockopt(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, "enp0s8".encode())
         self.raw_socket_v6.bind(('enp0s8', 0))  # TODO: read from config file
         self.socket_inet4_raw = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
         self.socket_inet4_raw.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)

@@ -5,7 +5,10 @@ from shared.InvalidEndpointException import InvalidEndpointException
 
 class PacketFilter:
     def __init__(self) -> None:
+        
+        
         self.allocations = {}
+        
         self.update_allocation()
         self.logger = logging.getLogger("packet_filter")
         
@@ -36,6 +39,7 @@ class PacketFilter:
         :return: True if valid
         '''
         prefix_v6 = ipaddress.ip_network(prefix_v6)
+        #TODO： rewrite with dict.get()
         for i in self.allocations:
             if prefix_v6.subnet_of(ipaddress.ip_network(i)):
                 if self.allocations[i] == endpoint_v4:
@@ -63,9 +67,24 @@ class PacketFilter:
             this_prefix_v6 = i.split(" - ")[0]
             this_endpoint_v4 = i.split(" - ")[1].strip()
             self.allocations.update({this_prefix_v6: this_endpoint_v4})
+            
+    def endpoint_update(self, prefix_v6, endpoint_v4) -> bool:
+        '''
+        Update tunnel information from heartbeat
+        '''
+        
+        prefix_v6 = ipaddress.ip_network(prefix_v6)\
+            
+        if self.allocations.get(prefix_v6) is not None:
+            self.allocations.update({prefix_v6: endpoint_v4})
+        
+            return
+                    
+        raise InvalidEndpointException("Prefix not found")
                         
     def lookup_endpoint(self, prefix_v6) -> str:
         query_prefix_v6 = ipaddress.ip_network(prefix_v6)
+        #TODO： rewrite with dict.get()
         for i in self.allocations:
             # self.logger.debug("lookup endpoint for %s against %s", query_prefix_v6, ipaddress.ip_network(i))
             if query_prefix_v6.subnet_of(ipaddress.ip_network(i)):
