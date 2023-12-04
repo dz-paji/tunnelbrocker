@@ -68,7 +68,7 @@ class PacketFilter:
             this_endpoint_v4 = i.split(" - ")[1].strip()
             self.allocations.update({this_prefix_v6: this_endpoint_v4})
             
-    def endpoint_update(self, prefix_v6, endpoint_v4) -> bool:
+    def endpoint_update(self, prefix_v6, endpoint_v4):
         '''
         Update tunnel information from heartbeat
         '''

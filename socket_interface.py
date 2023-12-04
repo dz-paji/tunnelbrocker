@@ -19,11 +19,11 @@ class SocketInterface:
         logging.basicConfig(level=logging.NOTSET)
 
         # create a raw socket
-        self.raw_socket_v4 = socket.socket(socket.PF_PACKET, socket.SOCK_RAW, socket.htons(0x0800))
-        self.raw_socket_v4.bind(('enp0s3', 0))  # TODO: read from config file
-        self.raw_socket_v6 = socket.socket(socket.PF_PACKET, socket.SOCK_RAW, socket.htons(0x86DD))
-        self.raw_socket_v6.setsockopt(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, "enp0s8".encode())
-        self.raw_socket_v6.bind(('enp0s8', 0))  # TODO: read from config file
+        self.socket_pf4_raw = socket.socket(socket.PF_PACKET, socket.SOCK_RAW, socket.htons(0x0800))
+        self.socket_pf4_raw.bind(('enp0s3', 0))  # TODO: read from config file
+        self.socket_pf6_raw = socket.socket(socket.PF_PACKET, socket.SOCK_RAW, socket.htons(0x86DD))
+        self.socket_pf6_raw.setsockopt(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, "enp0s8".encode())
+        self.socket_pf6_raw.bind(('enp0s8', 0))  # TODO: read from config file
         self.socket_inet4_raw = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
         self.socket_inet4_raw.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
         self.socket_inet4_raw.bind(('10.0.2.4', 0))  # TODO: read from config file
@@ -39,7 +39,7 @@ class SocketInterface:
             return -1
 
         while True:
-            packet = self.raw_socket_v4.recvfrom(65535)
+            packet = self.socket_pf4_raw.recvfrom(65535)
             packet = packet[0][14:]
             # raw_header = packet[14:34]
             raw_header = packet[:20]
@@ -70,7 +70,7 @@ class SocketInterface:
             return -1
 
         while True:
-            packet = self.raw_socket_v6.recvfrom(65535)
+            packet = self.socket_pf6_raw.recvfrom(65535)
             self.__logger.debug("IPv6 packet received")
             packet = packet[0][14:]
             packet_6in4, dst_v4 = self.__handler.encapsulate(packet)

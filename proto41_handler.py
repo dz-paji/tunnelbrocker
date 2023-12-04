@@ -28,11 +28,10 @@ class Proto41Handler:
         '''
         self.__endpoints_v4.append(ip)
         
-    def validate(self, packet):
-        return True
     
     def validate_endpoint(self, src_v4):
         '''
+        DEPRECATED. Use packet_filter.validate().
         Always returns true for debug purpose.
         TODO: fix with register when implementing TIC.
         :param src_v4:
@@ -58,12 +57,9 @@ class Proto41Handler:
         # src_ipv6 = ipv6_header[4]
         dst_ipv6 = ipv6_header[5]
         dst_ipv6 = socket.inet_ntop(socket.AF_INET6, dst_ipv6)
-        if self.validate_endpoint(src_v4) == False:
-            self.logger.error(f"src ipv4 {src_v4} not allocated")
-            return None
         
         try:
-            self.validate_endpoint(src_v4) # check if the endpoint is registered
+            self.packet_filter.validate_endpoint(src_v4) # check if the endpoint is registered
         except Exception as e:
             self.logger.error(e)
             return None
