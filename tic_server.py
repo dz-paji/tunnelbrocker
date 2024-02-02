@@ -3,6 +3,7 @@ import configparser
 import time
 import threading
 import logging
+from sql_connector import SQLConnector, UserEntity
 
 class TicServer():
     '''Tunnel and Information server.
@@ -29,6 +30,14 @@ class TicServer():
         else:
             #　bind to localhost by default.
             self.__server_socket.bind("localhost", 3874)
+            
+        # connect to database
+        try:
+            self.__sql_connector = SQLConnector()
+        except Exception as e:
+            self.logger.error("Failed to connect to database.")
+            self.logger.error(e)
+            exit(0)
             
     def run(self):
         self.__server_socket.listen()
@@ -73,7 +82,7 @@ class TicServer():
                 data = conn.recv(1024)
                 self.logger.debug("TLS status: " + type(self.__configparser.get("TLS", "Enable")))
                 if self.__configparser.get("TLS", "Enable") and data.startswith(b"starttls"):
-                    # TODO: Make it compatible with GnuTLS
+                    # TODO: Make it's compatible with GnuTLS
                     pass
                 else:
                     pass
@@ -82,27 +91,39 @@ class TicServer():
                     timestamp = self.getTimestamp() + "\n"
                     conn.send(timestamp.encode("utf-8"))
                 elif data.startswith(b"username"):
+                    # here the client sends its username. check against the database.
                     username = data.split(b" ")[1].decode("utf-8")
-                    conn.send(b"200 OK\n")
+                    dbUser = self.__sql_connector.getUser(username)
+                    
+                    if dbUser == None:
+                        conn.send(b"400 No such user\n")
+                        conn.close()
+                        return
+                    else:
+                        conn.send(b"200 OK\n")
                 elif data.startswith(b"challenge"):
-                    # should support clear, cookie and md5.
+                    # should support clear, cookie and md5. However not sure how cookie and clear works.
                     challenge_method = data.split(b" ")[1].decode("utf-8")
+                    
+                    # check challenge method
                     match challenge_method:
                         case "clear":
-                            conn.send(b"200 OK\n")
-                            self.__clientStates.update({addr: "clear"})
-                            break
+                            conn.send(b"400 Not supported\n")
+                            conn.close()
+                            return
                         case "cookie":
-                            conn.send(b"200 OK\n")
-                            self.__clientStates.update({addr: "cookie"})
-                            break
+                            conn.send(b"400 Not supported\n")
+                            conn.close()
+                            return
                         case "md5":
                             conn.send(b"200 OK\n")
                             self.__clientStates.update({addr: "md5"})
                             break
                         case _:
                             conn.send(b"400 Bad Request\n")
+                            
                 elif data.startswith("authenticate"):
+                    # make sure the user identified itself and the challenge method.
                     if username == "":
                         conn.send(b"400 Please identify yourself\n")
                         continue
@@ -111,7 +132,14 @@ class TicServer():
                         continue
                     else:
                         passwd = data.split(b" ")[2].decode("utf-8")
-                        auth_flag = 
+                        auth_flag = self.authMe(username, passwd)
+                        if auth_flag:
+                            conn.send(b"200 OK\n")
+                            self.__clientStates.update({addr: "authed"})
+                        else:
+                            conn.send(b"400 Failed\n")
+                            conn.close()
+                            return
                 
         except socket.timeout:
             self.logger.error("Connection timeout.")
@@ -123,10 +151,14 @@ class TicServer():
         '''
         return str(time.time())
     
-    def authMe(self) -> bool:
+    def authMe(self, username: str, password: str) -> bool:
         '''Authenticate the client.
         '''
-        pass
+        user = self.__sql_connector.getUser(username)
+        if user == None:
+            return False
+        else:
+            return user.password == password
 
 if __name__ == "__main__":
     tic_server = TicServer()
