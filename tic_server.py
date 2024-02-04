@@ -4,6 +4,7 @@ import time
 import threading
 import logging
 from sql_connector import SQLConnector, UserEntity
+import hashlib
 
 class TicServer():
     '''Tunnel and Information server.
@@ -16,10 +17,14 @@ class TicServer():
         
         # logging
         self.logger = logging.getLogger("TIC")
-        self.logger.setLevel(logging.INFO)
+        self.logger.setLevel(logging.DEBUG)
         handler = logging.StreamHandler()
         handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
         handler.setLevel(logging.INFO)
+        debug_handler = logging.StreamHandler()
+        debug_handler.setFormatter(logging.StreamHandler("%(levelname)s: %(message)s"))
+        debug_handler.setLevel(logging.DEBUG)
+        self.logger.addHandler(debug_handler)
         self.logger.addHandler(handler)
     
         # bind port 3874 for TIC.
@@ -46,7 +51,7 @@ class TicServer():
         while True:
             conn, addr = self.__server_socket.accept()
             
-            self.logger.info("Connected from %s" % addr)
+            self.logger.info("Connected from %s" % str(addr))
             threading.Thread(target=self.threadHandler, args=(conn, addr)).start()
             
             
@@ -65,14 +70,16 @@ class TicServer():
             
             data = conn.recv(1024)
             # here the client will sendback its version and runtime. could be useful for statistics.
+            self.logger.info("%s client version: %s" % (str(addr), data.decode("utf-8")))
             
             conn.send(b"200 OK\n")
             self.__clientStates.update({addr: "joined"})
             
             data = conn.recv(1024) # here the client should request timestamp.
             if data == b"get unixtime\n":
-                timestamp = self.getTimestamp() + "\n"
-                conn.send(timestamp.encode("utf-8"))
+                self.logger.info("Client %s requested timestamp." % str(addr))
+                result = "200 " + self.getTimestamp() + "\n"
+                conn.send(result.encode("utf-8"))
             else:
                 conn.send(b"400 Bad Request\n")
                 conn.close()
@@ -80,30 +87,38 @@ class TicServer():
             
             while True:
                 data = conn.recv(1024)
-                self.logger.debug("TLS status: " + type(self.__configparser.get("TLS", "Enable")))
-                if self.__configparser.get("TLS", "Enable") and data.startswith(b"starttls"):
+                self.logger.debug("Received: " + data.decode("utf-8"))
+                self.logger.debug("TLS status: " + (self.__configparser.get("TLS", "Enable")))
+                if self.__configparser.getboolean("TLS", "Enable") and data.startswith(b"starttls"):
                     # TODO: Make it's compatible with GnuTLS
                     pass
                 else:
                     pass
 
                 if data.startswith(b"get unixtime"):
+                    self.logger.info("Client %s requested timestamp." % str(addr))
                     timestamp = self.getTimestamp() + "\n"
                     conn.send(timestamp.encode("utf-8"))
                 elif data.startswith(b"username"):
                     # here the client sends its username. check against the database.
                     username = data.split(b" ")[1].decode("utf-8")
+                    username = username.strip()
+                    self.logger.debug("Client on %s identified itself as %s" % (str(addr), username))
                     dbUser = self.__sql_connector.getUser(username)
+                    self.logger.debug("User %s found in database." % dbUser)
                     
                     if dbUser == None:
                         conn.send(b"400 No such user\n")
                         conn.close()
                         return
                     else:
+                        self.logger.info("We now have client %s on %s" % (username, str(addr)))
                         conn.send(b"200 OK\n")
                 elif data.startswith(b"challenge"):
                     # should support clear, cookie and md5. However not sure how cookie and clear works.
                     challenge_method = data.split(b" ")[1].decode("utf-8")
+                    challenge_method = challenge_method.strip()
+                    self.logger.info("Client %s on %s suggested challenge: %s" % (username, str(addr), challenge_method))
                     
                     # check challenge method
                     match challenge_method:
@@ -116,13 +131,16 @@ class TicServer():
                             conn.close()
                             return
                         case "md5":
-                            conn.send(b"200 OK\n")
-                            self.__clientStates.update({addr: "md5"})
-                            break
+                            # This should be random
+                            challenge = "60d11a81a26df3738026b1839644a1ae"
+                            challeng_resp = "200 " + challenge + "\n"
+                            conn.send(challeng_resp.encode("utf-8"))
+                            self.__clientStates.update({addr: ("md5", challenge)})
                         case _:
                             conn.send(b"400 Bad Request\n")
-                            
-                elif data.startswith("authenticate"):
+                            conn.close()           
+                elif data.startswith(b"authenticate"):
+                    self.logger.info("Client %s on %s wants authenticate." % (username, str(addr)))
                     # make sure the user identified itself and the challenge method.
                     if username == "":
                         conn.send(b"400 Please identify yourself\n")
@@ -132,14 +150,20 @@ class TicServer():
                         continue
                     else:
                         passwd = data.split(b" ")[2].decode("utf-8")
-                        auth_flag = self.authMe(username, passwd)
+                        passwd = passwd.strip()
+                        auth_flag = self.authMe(username, passwd, addr)
                         if auth_flag:
+                            self.logger.info("Client %s on %s authenticated." % (username, str(addr)))
                             conn.send(b"200 OK\n")
                             self.__clientStates.update({addr: "authed"})
                         else:
+                            self.logger.info("Login failed for client %s on %s." % (username, str(addr)))
                             conn.send(b"400 Failed\n")
                             conn.close()
                             return
+                elif data.startswith(b"tunnel list"):
+                    self.logger.info("Client %s on %s requested tunnel list." % (username, str(addr)))                   
+                    
                 
         except socket.timeout:
             self.logger.error("Connection timeout.")
@@ -149,16 +173,33 @@ class TicServer():
     def getTimestamp(self) -> str:
         '''Get current timestamp
         '''
-        return str(time.time())
+        time_now_is = time.time()
+        time_now_is = int(time_now_is)
+        self.logger.debug("Timestamp: %d" % time_now_is)
+        return str(time_now_is)
     
-    def authMe(self, username: str, password: str) -> bool:
+    def authMe(self, username: str, password: str, addr) -> bool:
         '''Authenticate the client.
         '''
+        self.logger.debug("Authenticating %s, password: %s" % (username, password))
         user = self.__sql_connector.getUser(username)
         if user == None:
             return False
         else:
-            return user.password == password
+            # Get the challenge and method
+            (method, challenge) = self.__clientStates[addr]
+            match method:
+                case "md5":
+                    # some wired person thought it's funny to use OOP for md5. And you can't reuse it.
+                    signature = challenge + user.password
+                    
+                    signature_hasher = hashlib.md5()
+                    signature_hasher.update(signature.encode("utf-8"))
+                    signature_hash = signature_hasher.hexdigest()
+                    
+                    return signature_hash == password
+                    
+                    
 
 if __name__ == "__main__":
     tic_server = TicServer()

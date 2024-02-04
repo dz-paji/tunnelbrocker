@@ -9,7 +9,12 @@ class UserEntity:
         self.password = password
 
     def __eq__(self, other):
+        if other == None:
+            return False
         return self.uid == other.uid and self.username == other.username
+    
+    def __str__(self) -> str:
+        return "UserEntity (uid: %d, username: %s, password: %s)" % (self.uid, self.username, self.password)
 
 class SQLConnector:
     def __init__(self):
@@ -37,6 +42,21 @@ class SQLConnector:
         # username: text unique
         # password: text
         cur.execute("create table if not exists users (uid INT auto_increment, username text not null, password TEXT not null, constraint users_pk primary key (uid), constraint username_uk unique(username)); create index users__index on users (username);")
+        
+        # === tunnel ===
+        # tid: text unique
+        # type: text
+        # endpoint_v6: text
+        # v6_pop: text
+        # endpoint_v6_prefix: int
+        # endpoint_v4: text
+        # v4_pop: text
+        # uid: int foreign key (users)
+        # admin_id: int
+        # password: text
+        # heartbeat_interval: int
+        # mtu: int
+        
         
     def addUser(self, thisUser: UserEntity):
         '''Add a user to the database.
@@ -71,7 +91,7 @@ class SQLConnector:
         '''
         cur = self.conn.cursor()
         cur.execute("update users set username = %s where username = %s", (new, old))
-        self.conn.commit()
+        self.conn.commit() 
         
     def close(self):
         self.conn.close()
