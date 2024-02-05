@@ -13,7 +13,7 @@ class TicServer():
     def __init__(self):
         self.__configparser = configparser.ConfigParser()
         self.__configparser.read('config/tic.ini')
-        self.__clientStates = {} # {addr: state(joined, clear|md5, authed)}
+        self.__clientStates = {} # {addr: state(joined, clear|md5, UserEntity)}
         
         # logging
         self.logger = logging.getLogger("TIC")
@@ -155,14 +155,17 @@ class TicServer():
                         if auth_flag:
                             self.logger.info("Client %s on %s authenticated." % (username, str(addr)))
                             conn.send(b"200 OK\n")
-                            self.__clientStates.update({addr: "authed"})
+
+                            # bind address with user
+                            this_user = self.__sql_connector.getUser(username)
+                            self.__clientStates.update({addr: this_user})
                         else:
                             self.logger.info("Login failed for client %s on %s." % (username, str(addr)))
                             conn.send(b"400 Failed\n")
                             conn.close()
                             return
                 elif data.startswith(b"tunnel list"):
-                    self.logger.info("Client %s on %s requested tunnel list." % (username, str(addr)))                   
+                    self.logger.info("Client %s on %s requested tunnel list." % (username, str(addr)))                
                     
                 
         except socket.timeout:

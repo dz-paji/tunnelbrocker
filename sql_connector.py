@@ -32,6 +32,7 @@ class TunnelEntity:
         self.password = sqlResult[9]
         self.heartbeat_interval = sqlResult[10]
         self.mtu = sqlResult[11]
+        self.pop_id = sqlResult[12]
 
 class SQLConnector:
     def __init__(self):
@@ -77,6 +78,7 @@ class SQLConnector:
         # password: text
         # heartbeat_interval: int
         # mtu: int
+        # pop_id: text foreign key not null
         
         cur.execute("""
             create table if not exists tunnels
@@ -115,6 +117,14 @@ class SQLConnector:
 
             alter table tunnels
                 modify tid text auto_increment;
+        """)
+        cur.execute("""
+            alter table tunnels
+                add pop_id text not null;
+
+            create index tunnels_pop_id_index
+                on tunnels (pop_id);
+
         """)
         
     def addUser(self, thisUser: UserEntity):
@@ -183,8 +193,9 @@ class SQLConnector:
         password = tunnel.password
         heartbeat_interval = tunnel.heartbeat_interval
         mtu = tunnel.mtu
+        pop_id = tunnel.pop_id
         cur = self.conn.cursor()
-        cur.execute("insert into tunnels (tid, type, endpoint_v6, v6_pop, endpoint_v6_prefix, endpoint_v4, v4_pop, uid, admin_id, password, heartbeat_interval, mtu) values (%s %s %s %s %s %s %s %s %s %s %s %s)", (tid, type, endpoint_v6, v6_pop, endpoint_v6_prefix, endpoint_v4, v4_pop, uid, admin_id, password, heartbeat_interval, mtu))
+        cur.execute("insert into tunnels (tid, type, endpoint_v6, v6_pop, endpoint_v6_prefix, endpoint_v4, v4_pop, uid, admin_id, password, heartbeat_interval, mtu, pop_id) values (%s %s %s %s %s %s %s %s %s %s %s %s %s)", (tid, type, endpoint_v6, v6_pop, endpoint_v6_prefix, endpoint_v4, v4_pop, uid, admin_id, password, heartbeat_interval, mtu, pop_id))
 
     def getTunnel(self, tid: str) -> TunnelEntity:
         '''Get a tunnel from the database.
