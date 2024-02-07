@@ -16,16 +16,16 @@ class TicServer():
         self.__clientStates = {} # {addr: state(joined, clear|md5, UserEntity)}
         
         # logging
+        logging.basicConfig(level=logging.DEBUG)
         self.logger = logging.getLogger("TIC")
-        self.logger.setLevel(logging.DEBUG)
         handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
-        handler.setLevel(logging.INFO)
-        debug_handler = logging.StreamHandler()
-        debug_handler.setFormatter(logging.StreamHandler("%(levelname)s: %(message)s"))
-        debug_handler.setLevel(logging.DEBUG)
-        self.logger.addHandler(debug_handler)
-        self.logger.addHandler(handler)
+        # handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+        # handler.setLevel(logging.INFO)
+        # debug_handler = logging.StreamHandler()
+        # debug_handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+        # debug_handler.setLevel(logging.DEBUG)
+        # self.logger.addHandler(debug_handler)
+        # self.logger.addHandler(handler)
     
         # bind port 3874 for TIC.
         self.__server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -59,7 +59,7 @@ class TicServer():
         '''Handle the connection in a new thread.
         '''
         # set timeout
-        conn.settimeout(10)
+        # conn.settimeout()
         username = "" # for authentication
         
         try:
@@ -75,7 +75,8 @@ class TicServer():
             conn.send(b"200 OK\n")
             self.__clientStates.update({addr: "joined"})
             
-            data = conn.recv(1024) # here the client should request timestamp.
+            data = conn.recv(1024) 
+            # here the client should request timestamp.
             if data == b"get unixtime\n":
                 self.logger.info("Client %s requested timestamp." % str(addr))
                 result = "200 " + self.getTimestamp() + "\n"
@@ -87,6 +88,7 @@ class TicServer():
             
             while True:
                 data = conn.recv(1024)
+                data = data.strip()
                 self.logger.debug("Received: " + data.decode("utf-8"))
                 self.logger.debug("TLS status: " + (self.__configparser.get("TLS", "Enable")))
                 if self.__configparser.getboolean("TLS", "Enable") and data.startswith(b"starttls"):
@@ -96,6 +98,7 @@ class TicServer():
                     pass
 
                 if data.startswith(b"get unixtime"):
+                    # get timestamp
                     self.logger.info("Client %s requested timestamp." % str(addr))
                     timestamp = self.getTimestamp() + "\n"
                     conn.send(timestamp.encode("utf-8"))
@@ -140,6 +143,7 @@ class TicServer():
                             conn.send(b"400 Bad Request\n")
                             conn.close()           
                 elif data.startswith(b"authenticate"):
+                    # client sends authentication string
                     self.logger.info("Client %s on %s wants authenticate." % (username, str(addr)))
                     # make sure the user identified itself and the challenge method.
                     if username == "":
@@ -165,11 +169,42 @@ class TicServer():
                             conn.close()
                             return
                 elif data.startswith(b"tunnel list"):
-                    self.logger.info("Client %s on %s requested tunnel list." % (username, str(addr)))                
+                    self.logger.info("Client %s requested tunnel list." % (username, ))
+                    thisUser = self.__clientStates[addr]
                     
+                    # check login
+                    if type(thisUser) != UserEntity:
+                        conn.send(b"400 Please authenticate first\n")
+                        conn.close()
+                        return
+                    
+                    # 201 /n
+                    # tunnel_id, ipv6, ipv4, popid /n
+                    # 202 /n
+                    resp_msg = "201\n"
+                    for i in self.__sql_connector.listTunnels(thisUser.uid):
+                        resp_msg += "%s %s %s %s\n" % (i.tid, i.endpoint_v6, i.endpoint_v4, i.pop_id)
+                    resp_msg += "202\n"
+                    conn.send(resp_msg.encode("utf-8"))
+                elif data.startswith(b"tunnel show"):
+                    t_id = data.strip().split(b" ")[2].decode("utf-8")
+                    self.logger.info("Client %s requested tunnel info %s." % (username, t_id))
+                    i = self.__sql_connector.getTunnel(t_id)
+                    resp_msg = "201\n"
+                    
+                    # TunnelID, Type, v6 endpoint, v6 pop, v6 prefix length, pop id, v4 endpoint, v4 pop, user state, admin state, heartbeat interval, mtu
+                    # TODO: Figure out what to do with userstate and admin state
+                    resp_msg += "%s %s %s %s %d %s %s %s %s %s %d %d\n" % (i.tid, i.type, i.endpoint_v6, i.v6_pop, i.endpoint_v6_prefix, i.pop_id, i.endpoint_v4, i.v4_pop, i.user.state, i.admin.state, i.heartbeat_interval, i.mtu)
+                    resp_msg += "202\n"
+                    conn.send(resp_msg.encode("utf-8"))
                 
         except socket.timeout:
             self.logger.error("Connection timeout.")
+            conn.close()
+            return
+        
+        except ConnectionResetError:
+            self.logger.error("Connection reset by peer.")
             conn.close()
             return
     
@@ -191,21 +226,22 @@ class TicServer():
         else:
             # Get the challenge and method
             (method, challenge) = self.__clientStates[addr]
+            self.logger.debug("Challenge method: %s, challenge: %s" % (method, challenge))
             match method:
                 case "md5":
-                    # some wired person thought it's funny to use OOP for md5. And you can't reuse it.
-                    signature = challenge + user.password
+                    passwd_hasher = hashlib.md5()
+                    passwd_hasher.update(user.password.encode("utf-8"))
+                    passwd_md5 = passwd_hasher.hexdigest()
                     
+                    # some wired person thought it's funny to use OOP for md5. And you can't reuse it.
+                    signature = challenge + passwd_md5
                     signature_hasher = hashlib.md5()
                     signature_hasher.update(signature.encode("utf-8"))
                     signature_hash = signature_hasher.hexdigest()
+                    self.logger.info("Client returned: %s" % signature_hash)
                     
                     return signature_hash == password
-                    
-                    
 
 if __name__ == "__main__":
     tic_server = TicServer()
     tic_server.run()
-
-        

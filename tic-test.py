@@ -144,6 +144,14 @@ def testMD5():
     anotherHash.update(newsig.encode("utf-8"))
     print (anotherHash.hexdigest())
     
+def typeTest():
+    a = 1
+    print(type(a) == int)
+    
+def sprinfTest():
+    print("%d" % "1")
+    
+    
 if __name__ == "__main__":
     # md5 = MD5Context()
     # md5.update(b"admin")

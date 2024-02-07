@@ -1,5 +1,6 @@
 import mysql.connector
 import configparser
+import logging
 
 class UserEntity:
     '''User entity'''
@@ -51,6 +52,8 @@ class SQLConnector:
         )
         
         self.conn.autocommit = True
+        
+        self.logger = logging.getLogger("DB")
         
     def setup(self):
         '''Create the table for TIC.
@@ -146,6 +149,16 @@ class SQLConnector:
             return None
         return UserEntity(theOne[0], theOne[1], theOne[2], theOne[3])
     
+    def getUserById(self, uid: int) -> UserEntity:
+        '''Get a user from the database by uid.
+        '''
+        cur = self.conn.cursor()
+        cur.execute("select * from users where uid = %s", (uid,))
+        theOne = cur.fetchone()
+        if theOne == None:
+            return None
+        return UserEntity(theOne[0], theOne[1], theOne[2], theOne[3])
+    
     # def changePassword(self, user: UserEntity):
     #     '''Change the password of a user.
     #     '''
@@ -195,7 +208,7 @@ class SQLConnector:
         mtu = tunnel.mtu
         pop_id = tunnel.pop_id
         cur = self.conn.cursor()
-        cur.execute("insert into tunnels (tid, type, endpoint_v6, v6_pop, endpoint_v6_prefix, endpoint_v4, v4_pop, uid, admin_id, password, heartbeat_interval, mtu, pop_id) values (%s %s %s %s %s %s %s %s %s %s %s %s %s)", (tid, type, endpoint_v6, v6_pop, endpoint_v6_prefix, endpoint_v4, v4_pop, uid, admin_id, password, heartbeat_interval, mtu, pop_id))
+        cur.execute("insert into tunnels (tid, type, endpoint_v6, v6_pop, endpoint_v6_prefix, endpoint_v4, v4_pop, uid, admin_id, password, heartbeat_interval, mtu, pop_id) values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (tid, type, endpoint_v6, v6_pop, endpoint_v6_prefix, endpoint_v4, v4_pop, uid, admin_id, password, heartbeat_interval, mtu, pop_id))
 
     def getTunnel(self, tid: str) -> TunnelEntity:
         '''Get a tunnel from the database.
@@ -205,11 +218,13 @@ class SQLConnector:
         theOne = cur.fetchone()
         if theOne == None:
             return None
-        user = self.getUser(theOne[7])
-        admin = self.getUser(theOne[8])
+        
+        self.logger.debug("The one: %s", theOne)
+        user = self.getUserById(theOne[7])
+        admin = self.getUserById(theOne[8])
         return TunnelEntity(theOne, user, admin)
     
-    def listTunnels(self, uid: str) -> list:              
+    def listTunnels(self, uid: str) -> list[UserEntity]:              
         '''List all tunnels of a user.
         '''
         cur = self.conn.cursor()
@@ -235,6 +250,21 @@ class SQLConnector:
 if __name__ == "__main__":
     try:
         sql = SQLConnector()
-        print(sql.getUser("admin"))
+        tid = "1"
+        type = "AYIYA"
+        endpoint_v6 = "fe80::1"
+        v6_pop = "fd00::1"
+        endpoint_v6_prefix = 48
+        endpoint_v4 = "10.0.0.1"
+        v4_pop = "10.0.1.1"
+        uid = 1
+        admin_id = 1
+        password = "admin"
+        heartbeat_interval = 120
+        mtu = 1500
+        pop_id = "desktop.paji.uk"
+        user = sql.getUser("admin")
+        tEntity = TunnelEntity((tid, type, endpoint_v6, v6_pop, endpoint_v6_prefix, endpoint_v4, v4_pop, uid, admin_id, password, heartbeat_interval, mtu, pop_id), user, user)
+        sql.addTunnel(tEntity)
     except Exception as e:
         print(e)
