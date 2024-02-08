@@ -241,7 +241,7 @@ class TicServer():
                     
                     return signature_hash == password
                 
-    def popThread(self, pop_id: str):
+    def popCLI(self, pop_id: str):
         '''Connects to a pop'''
         pop_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         thisPop = self.__sql_connector.getPop(pop_id)
@@ -267,4 +267,4 @@ class TicServer():
 
 if __name__ == "__main__":
     tic_server = TicServer()
-    tic_server.popThread("1")
+    tic_server.popCLI("1")

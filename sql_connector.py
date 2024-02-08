@@ -280,14 +280,23 @@ class SQLConnector:
         cur.close()
 
     def getPop(self, pop_id: str) -> PopEntity:
-        '''Get a pop from the database.
+        '''Get a pop from the database. pop_id can be either id or pop_id.
         '''
         cur = self.conn.cursor()
         cur.execute("select * from pops where id = %s", (pop_id,))
         theOne = cur.fetchone()
         cur.close()
         if theOne == None:
-            return None
+            cur = self.conn.cursor()
+            cur.execute("select * from pops where pop_id = %s", (pop_id,))
+            theOne = cur.fetchone()
+            cur.close()
+            if theOne == None:
+                return None
+            
+            thisPop = PopEntity(theOne)
+            return thisPop
+            
         cur.close()
         thisPop = PopEntity(theOne)
         return thisPop
