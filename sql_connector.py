@@ -35,6 +35,29 @@ class TunnelEntity:
         self.mtu = sqlResult[11]
         self.pop_id = sqlResult[12]
 
+class PopEntity:
+    '''Pop entity'''
+    def __init__(self, sqlResult: tuple):
+        self.pop_id = sqlResult[0]
+        self.pop_v4 = sqlResult[1]
+        self.pop_v6 = sqlResult[2]
+
+    def __str__(self) -> str:
+        return "PopEntity (id: %s, IPv4: %s, IPv6: %s)" % (self.pop_id, self.pop_v4, self.pop_v6)
+    
+    def connectString(self) -> list[str]:
+        ''' Get the connection string of a pop. 
+        Prefers IPv4 over IPv6.
+        '''
+        if self.pop_v6 == '':
+            return [self.pop_v4]
+        elif self.pop_v4 == '':
+            return [self.pop_v6]
+        elif self.pop_v4 != '' and self.pop_v6 != '':
+            return [self.pop_v4, self.pop_v6]
+        else:
+            return None
+
 class SQLConnector:
     def __init__(self):
         configger = configparser.ConfigParser()
@@ -72,27 +95,23 @@ class SQLConnector:
         # tid: text unique primary key not null
         # type: text not null
         # endpoint_v6: text not null
-        # v6_pop: text
         # endpoint_v6_prefix: int not null
         # endpoint_v4: text
-        # v4_pop: text
         # uid: int foreign key (users) CASECADE not null
         # admin_id: int foreign key (users) no action not null
         # password: text
         # heartbeat_interval: int
         # mtu: int
-        # pop_id: text foreign key not null
-        
+        # pop_id: text foreign key (pops) no action not null      
+        # TODO: rework on db structure, as pop_v4 and pop_v6 field moved to another table.  
         cur.execute("""
             create table if not exists tunnels
             (
                 tid                text,
                 type               text not null,
                 endpoint_v6        text not null,
-                v6_pop             text null,
                 endpoint_v6_prefix int  not null,
                 endpoint_v4        text null,
-                v4_pop             text null,
                 uid                int  not null,
                 admin_id           int  not null,
                 password           text null,
@@ -129,6 +148,11 @@ class SQLConnector:
                 on tunnels (pop_id);
 
         """)
+        # === pops ===
+        # pop_id: text unique primary key not null
+        # v6_pop: text
+        # v4_pop: text
+
         
     def addUser(self, thisUser: UserEntity):
         '''Add a user to the database.
@@ -244,6 +268,8 @@ class SQLConnector:
         cur = self.conn.cursor()
         cur.execute("update tunnels set type = %s, endpoint_v6 = %s, v6_pop = %s, endpoint_v6_prefix = %s, endpoint_v4 = %s, v4_pop = %s, uid = %s, admin_id = %s, password = %s, heartbeat_interval = %s, mtu = %s where tid = %s", (tunnel.type, tunnel.endpoint_v6, tunnel.v6_pop, tunnel.endpoint_v6_prefix, tunnel.endpoint_v4, tunnel.v4_pop, tunnel.user.uid, tunnel.admin.uid, tunnel.password, tunnel.heartbeat_interval, tunnel.mtu, tunnel.tid))
 
+    def getPop(self, pop_id: str) -> 
+    
     def close(self):
         self.conn.close()
     

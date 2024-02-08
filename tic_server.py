@@ -52,10 +52,9 @@ class TicServer():
             conn, addr = self.__server_socket.accept()
             
             self.logger.info("Connected from %s" % str(addr))
-            threading.Thread(target=self.threadHandler, args=(conn, addr)).start()
-            
-            
-    def threadHandler(self, conn: socket.socket, addr: str):
+            threading.Thread(target=self.clientThread, args=(conn, addr)).start()
+                        
+    def clientThread(self, conn: socket.socket, addr: str):
         '''Handle the connection in a new thread.
         '''
         # set timeout
@@ -241,6 +240,10 @@ class TicServer():
                     self.logger.info("Client returned: %s" % signature_hash)
                     
                     return signature_hash == password
+                
+    def popThread(self, pop_id: str):
+        pop_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        
 
 if __name__ == "__main__":
     tic_server = TicServer()
