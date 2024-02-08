@@ -18,29 +18,12 @@ class UserEntity:
     def __str__(self) -> str:
         return "UserEntity (uid: %d, username: %s, password: %s, state: %s)" % (self.uid, self.username, self.password, self.state)
     
-class TunnelEntity:
-    '''Tunnel entity'''
-    def __init__(self, sqlResult: tuple, user: UserEntity, admin: UserEntity):
-        self.tid = sqlResult[0]
-        self.type = sqlResult[1]
-        self.endpoint_v6 = sqlResult[2]
-        self.v6_pop = sqlResult[3]
-        self.endpoint_v6_prefix = sqlResult[4]
-        self.endpoint_v4 = sqlResult[5]
-        self.v4_pop = sqlResult[6]
-        self.user = user
-        self.admin = admin
-        self.password = sqlResult[9]
-        self.heartbeat_interval = sqlResult[10]
-        self.mtu = sqlResult[11]
-        self.pop_id = sqlResult[12]
-
 class PopEntity:
     '''Pop entity'''
     def __init__(self, sqlResult: tuple):
-        self.pop_id = sqlResult[0]
-        self.pop_v4 = sqlResult[1]
-        self.pop_v6 = sqlResult[2]
+        self.pop_id = sqlResult[1]
+        self.pop_v4 = sqlResult[2]
+        self.pop_v6 = sqlResult[3]
 
     def __str__(self) -> str:
         return "PopEntity (id: %s, IPv4: %s, IPv6: %s)" % (self.pop_id, self.pop_v4, self.pop_v6)
@@ -57,6 +40,21 @@ class PopEntity:
             return [self.pop_v4, self.pop_v6]
         else:
             return None
+        
+class TunnelEntity:
+    '''Tunnel entity'''
+    def __init__(self, sqlResult: tuple, user: UserEntity, admin: UserEntity, pop: PopEntity):
+        self.tid = sqlResult[0]
+        self.type = sqlResult[1]
+        self.endpoint_v6 = sqlResult[2]
+        self.endpoint_v6_prefix = sqlResult[3]
+        self.endpoint_v4 = sqlResult[4]
+        self.user = user
+        self.admin = admin
+        self.password = sqlResult[7]
+        self.heartbeat_interval = sqlResult[8]
+        self.mtu = sqlResult[9]
+        self.pop = pop
 
 class SQLConnector:
     def __init__(self):
@@ -73,26 +71,32 @@ class SQLConnector:
             password=password,
             database=database
         )
-        
         self.conn.autocommit = True
         
         self.logger = logging.getLogger("DB")
+        logging.basicConfig(level=logging.DEBUG)
         
     def setup(self):
         '''Create the table for TIC.
         '''
-
-        cur = self.conn.cursor()
         # === users ===
         # uid: int unique
         # username: text unique
         # password: text
         # state: text
-        cur.execute("create table if not exists users (uid INT auto_increment, username text not null, password TEXT not null, constraint users_pk primary key (uid), constraint username_uk unique(username)); create index users__index on users (username);")
+        cur = self.conn.cursor()
+        cur.execute("create table if not exists users (uid INT auto_increment, username text not null, password TEXT not null, constraint users_pk primary key (uid), constraint username_uk unique(username));")
+        cur.execute("create index if not exists users__index on users (username);")
         cur.execute("alter table users add state text null;")
-        
+        # === pops ===
+        # id: int unique primary key not null
+        # pop_id: text
+        # v6_pop: text
+        # v4_pop: text
+        cur.execute("create table if not exists pops (id INT auto_increment, pop_id text not null, v6_pop text null, v4_pop text null, primary key (id));")
         # === tunnel ===
-        # tid: text unique primary key not null
+        # id: int unique primary key not null
+        # tid: text
         # type: text not null
         # endpoint_v6: text not null
         # endpoint_v6_prefix: int not null
@@ -105,54 +109,50 @@ class SQLConnector:
         # pop_id: text foreign key (pops) no action not null      
         # TODO: rework on db structure, as pop_v4 and pop_v6 field moved to another table.  
         cur.execute("""
-            create table if not exists tunnels
+            create table tunnels
             (
-                tid                text,
-                type               text not null,
-                endpoint_v6        text not null,
-                endpoint_v6_prefix int  not null,
-                endpoint_v4        text null,
-                uid                int  not null,
-                admin_id           int  not null,
-                password           text null,
-                heartbeat_interval int  null,
-                mtu                int  null,
-                constraint tunnels_admin_fk
-                    foreign key (admin_id) references users (uid),
-                constraint tunnels_user_fk
+                id                 int auto_increment,
+                tid                varchar(255) not null,
+                type               varchar(255) not null,
+                endpoint_v6        varchar(255) not null,
+                endpoint_v6_prefix int          not null,
+                endpoint_v4        varchar(255) not null,
+                uid                int          not null,
+                admin_id           int          not null,
+                password           text         not null,
+                heartbeat_interval int          null,
+                mtu                int          null,
+                pop_id             int          not null,
+                constraint tunnels_pk
+                    primary key (id),
+                constraint tunnels_pops_id_fk
+                    foreign key (pop_id) references pops (id)
+                        on update cascade,
+                constraint tunnels_users_uid_fk
                     foreign key (uid) references users (uid)
-                        on delete cascade
+                        on update cascade on delete cascade,
+                constraint tunnels_users_uid_fk_2
+                    foreign key (admin_id) references users (uid)
+                        on update cascade
             );
-
-            create index tunnels_tid_index
-                on tunnels (tid);
-
-            create index tunnels_type_index
-                on tunnels (type);
-
-            create index tunnels_uid_index
-                on tunnels (uid);
-
-            alter table tunnels
-                add constraint tunnels_pk
-                    primary key (tid);
-
-            alter table tunnels
-                modify tid text auto_increment;
         """)
         cur.execute("""
-            alter table tunnels
-                add pop_id text not null;
-
+            create index tunnels_endpoint_v4_index
+                on tunnels (endpoint_v4);            
+        """)
+        cur.execute("""
+            create index tunnels_endpoint_v6_index
+                on tunnels (endpoint_v6);
+        """)
+        cur.execute("""
             create index tunnels_pop_id_index
                 on tunnels (pop_id);
-
         """)
-        # === pops ===
-        # pop_id: text unique primary key not null
-        # v6_pop: text
-        # v4_pop: text
-
+        cur.execute("""
+            create index tunnels_type_index
+                on tunnels (type);
+        """)
+        cur.close()
         
     def addUser(self, thisUser: UserEntity):
         '''Add a user to the database.
@@ -162,6 +162,7 @@ class SQLConnector:
         state = thisUser.state
         cur = self.conn.cursor()
         cur.execute("insert into users (username, password, state) values (%s, %s)", (username, password, state))
+        cur.close()
     
     def getUser(self, username: str) -> UserEntity:
         '''Get a user from the database.
@@ -171,6 +172,8 @@ class SQLConnector:
         theOne = cur.fetchone()
         if theOne == None:
             return None
+        
+        cur.close()
         return UserEntity(theOne[0], theOne[1], theOne[2], theOne[3])
     
     def getUserById(self, uid: int) -> UserEntity:
@@ -181,7 +184,9 @@ class SQLConnector:
         theOne = cur.fetchone()
         if theOne == None:
             return None
-        return UserEntity(theOne[0], theOne[1], theOne[2], theOne[3])
+        thisUser = UserEntity(theOne[0], theOne[1], theOne[2], theOne[3])
+        cur.close()
+        return thisUser
     
     # def changePassword(self, user: UserEntity):
     #     '''Change the password of a user.
@@ -214,6 +219,7 @@ class SQLConnector:
         state = user.state
         cur = self.conn.cursor()
         cur.execute("update users set username = %s, password = %s, state = %s where uid = %s", (username, password, state, uid))
+        cur.close()
         
     def addTunnel(self, tunnel: TunnelEntity):
         '''Add a tunnel to the database.
@@ -221,18 +227,17 @@ class SQLConnector:
         tid = tunnel.tid
         type = tunnel.type
         endpoint_v6 = tunnel.endpoint_v6
-        v6_pop = tunnel.v6_pop
         endpoint_v6_prefix = tunnel.endpoint_v6_prefix
         endpoint_v4 = tunnel.endpoint_v4
-        v4_pop = tunnel.v4_pop
         uid = tunnel.user.uid
         admin_id = tunnel.admin.uid
         password = tunnel.password
         heartbeat_interval = tunnel.heartbeat_interval
         mtu = tunnel.mtu
-        pop_id = tunnel.pop_id
+        pop_id = tunnel.pop.pop_id
         cur = self.conn.cursor()
-        cur.execute("insert into tunnels (tid, type, endpoint_v6, v6_pop, endpoint_v6_prefix, endpoint_v4, v4_pop, uid, admin_id, password, heartbeat_interval, mtu, pop_id) values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (tid, type, endpoint_v6, v6_pop, endpoint_v6_prefix, endpoint_v4, v4_pop, uid, admin_id, password, heartbeat_interval, mtu, pop_id))
+        cur.execute("insert into tunnels (tid, type, endpoint_v6, endpoint_v6_prefix, endpoint_v4, uid, admin_id, password, heartbeat_interval, mtu, pop_id) values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (tid, type, endpoint_v6, endpoint_v6_prefix, endpoint_v4, uid, admin_id, password, heartbeat_interval, mtu, pop_id))
+        cur.close()
 
     def getTunnel(self, tid: str) -> TunnelEntity:
         '''Get a tunnel from the database.
@@ -244,9 +249,12 @@ class SQLConnector:
             return None
         
         self.logger.debug("The one: %s", theOne)
-        user = self.getUserById(theOne[7])
-        admin = self.getUserById(theOne[8])
-        return TunnelEntity(theOne, user, admin)
+        user = self.getUserById(theOne[5])
+        admin = self.getUserById(theOne[6])
+        pop = self.getPop(theOne[10])
+        cur.close()
+        
+        return TunnelEntity(theOne, user, admin, pop)
     
     def listTunnels(self, uid: str) -> list[UserEntity]:              
         '''List all tunnels of a user.
@@ -256,9 +264,11 @@ class SQLConnector:
         tunnels = cur.fetchall()
         resp = []
         for tunnel in tunnels:
-            user = self.getUser(tunnel[7])
-            admin = self.getUser(tunnel[8])
-            resp.append(TunnelEntity(tunnel, user, admin))
+            user = self.getUser(tunnel[5])
+            admin = self.getUser(tunnel[6])
+            pop = self.getPop(tunnel[10])
+            resp.append(TunnelEntity(tunnel, user, admin, pop))
+        cur.close()
         
         return resp
     
@@ -266,9 +276,47 @@ class SQLConnector:
         '''Update a tunnel.
         '''
         cur = self.conn.cursor()
-        cur.execute("update tunnels set type = %s, endpoint_v6 = %s, v6_pop = %s, endpoint_v6_prefix = %s, endpoint_v4 = %s, v4_pop = %s, uid = %s, admin_id = %s, password = %s, heartbeat_interval = %s, mtu = %s where tid = %s", (tunnel.type, tunnel.endpoint_v6, tunnel.v6_pop, tunnel.endpoint_v6_prefix, tunnel.endpoint_v4, tunnel.v4_pop, tunnel.user.uid, tunnel.admin.uid, tunnel.password, tunnel.heartbeat_interval, tunnel.mtu, tunnel.tid))
+        cur.execute("update tunnels set type = %s, endpoint_v6 = %s, endpoint_v6_prefix = %s, endpoint_v4 = %s, uid = %s, admin_id = %s, password = %s, heartbeat_interval = %s, mtu = %s, pop_id = %s where tid = %s", (tunnel.type, tunnel.endpoint_v6, tunnel.endpoint_v6_prefix, tunnel.endpoint_v4, tunnel.user.uid, tunnel.admin.uid, tunnel.password, tunnel.heartbeat_interval, tunnel.mtu, tunnel.tid, tunnel.pop_id))
+        cur.close()
 
-    def getPop(self, pop_id: str) -> 
+    def getPop(self, pop_id: str) -> PopEntity:
+        '''Get a pop from the database.
+        '''
+        cur = self.conn.cursor()
+        cur.execute("select * from pops where id = %s", (pop_id,))
+        theOne = cur.fetchone()
+        cur.close()
+        if theOne == None:
+            return None
+        cur.close()
+        thisPop = PopEntity(theOne)
+        return thisPop
+    
+    def listPops(self) -> list[PopEntity]:
+        '''List all pops.
+        '''
+        cur = self.conn.cursor()
+        cur.execute("select * from pops")
+        pops = cur.fetchall()
+        resp = []
+        for pop in pops:
+            resp.append(PopEntity(pop))
+        cur.close()
+        return resp
+    
+    def addPop(self, pop: PopEntity):
+        '''Add a pop to the database.
+        '''
+        cur = self.conn.cursor()
+        cur.execute("insert into pops (pop_id, v6_pop, v4_pop) values (%s, %s, %s)", (pop.pop_id, pop.pop_v6, pop.pop_v4))
+        cur.close()
+        
+    def updatePop(self, pop: PopEntity):
+        '''Update a pop.
+        '''
+        cur = self.conn.cursor()
+        cur.execute("update pops set v6_pop = %s, v4_pop = %s where pop_id = %s", (pop.pop_v6, pop.pop_v4, pop.pop_id))
+        cur.close()
     
     def close(self):
         self.conn.close()
@@ -289,8 +337,12 @@ if __name__ == "__main__":
         heartbeat_interval = 120
         mtu = 1500
         pop_id = "desktop.paji.uk"
-        user = sql.getUser("admin")
-        tEntity = TunnelEntity((tid, type, endpoint_v6, v6_pop, endpoint_v6_prefix, endpoint_v4, v4_pop, uid, admin_id, password, heartbeat_interval, mtu, pop_id), user, user)
-        sql.addTunnel(tEntity)
+        # user = sql.getUser("admin")
+        # tEntity = TunnelEntity((tid, type, endpoint_v6, v6_pop, endpoint_v6_prefix, endpoint_v4, v4_pop, uid, admin_id, password, heartbeat_interval, mtu, pop_id), user, user)
+        # sql.addTunnel(tEntity)
+        # sql.setup()
+        pEntity = PopEntity(("desktop", "127.0.0.1", ""))
+        sql.addPop(pEntity)
+
     except Exception as e:
         print(e)

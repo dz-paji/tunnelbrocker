@@ -242,9 +242,29 @@ class TicServer():
                     return signature_hash == password
                 
     def popThread(self, pop_id: str):
+        '''Connects to a pop'''
         pop_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        thisPop = self.__sql_connector.getPop(pop_id)
+        connString = thisPop.connectString()
+        
+        if connString == None:
+            self.logger.error("Pop %s is not connectable" % pop_id)
+            return
+        
+        pop_socket.connect((connString[0], 42003))
+        
+        data = pop_socket.recv(1024)
+        self.logger.debug("Pop %s: %s" % (pop_id, data.decode("utf-8")))
+        
+        while True:
+            newLine = input()
+            newLine += "\n"
+            pop_socket.send(newLine.encode("utf-8"))
+            data = pop_socket.recv(1024)
+            self.logger.debug("Pop %s: %s" % (pop_id, data.decode("utf-8")))
+        
         
 
 if __name__ == "__main__":
     tic_server = TicServer()
-    tic_server.run()
+    tic_server.popThread("1")
