@@ -151,6 +151,26 @@ def typeTest():
 def sprinfTest():
     print("%d" % "1")
     
+def testAddTunnel():
+    # idofT = "5"
+    # tid = "T4155"
+    # type = "10.2.0.5"
+    # endpoint_v6 = ""
+    # endpoint_v6_prefix = 64
+    # endpoint_v4 = ""
+    # uid = 1
+    # admin_id = 1
+    # password = "admin"
+    # heartbeat_interval = 120
+    # mtu = 1480
+    # pop_id = "desktop"
+    # sqlConner = SQLConnector()
+    # user = sqlConner.getUserById(2)
+    # pop = sqlConner.getPop("desktop")
+    # print(pop)
+    # tEntity = TunnelEntity((idofT, tid,  type, endpoint_v6, endpoint_v6_prefix, endpoint_v4, uid, admin_id, password, heartbeat_interval, mtu, pop_id), user, user, pop)
+    # tic_server.addTunnel(tEntity, pop_id)
+
     
 if __name__ == "__main__":
     # md5 = MD5Context()

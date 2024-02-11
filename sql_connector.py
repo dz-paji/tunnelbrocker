@@ -1,6 +1,7 @@
 import mysql.connector
 import configparser
 import logging
+import hashlib
 
 class UserEntity:
     '''User entity'''
@@ -21,12 +22,13 @@ class UserEntity:
 class PopEntity:
     '''Pop entity'''
     def __init__(self, sqlResult: tuple):
+        self.id = sqlResult[0]
         self.pop_id = sqlResult[1]
-        self.pop_v4 = sqlResult[2]
-        self.pop_v6 = sqlResult[3]
+        self.pop_v4 = sqlResult[3]
+        self.pop_v6 = sqlResult[2]
 
     def __str__(self) -> str:
-        return "PopEntity (id: %s, IPv4: %s, IPv6: %s)" % (self.pop_id, self.pop_v4, self.pop_v6)
+        return "PopEntity (id: %s, pop_id: %s, IPv4: %s, IPv6: %s)" % (self.id, self.pop_id, self.pop_v4, self.pop_v6)
     
     def connectString(self) -> list[str]:
         ''' Get the connection string of a pop. 
@@ -44,26 +46,27 @@ class PopEntity:
 class TunnelEntity:
     '''Tunnel entity'''
     def __init__(self, sqlResult: tuple, user: UserEntity, admin: UserEntity, pop: PopEntity):
-        self.tid = sqlResult[0]
-        self.type = sqlResult[1]
-        self.endpoint_v6 = sqlResult[2]
-        self.endpoint_v6_prefix = sqlResult[3]
-        self.endpoint_v4 = sqlResult[4]
+        self.id = sqlResult[0]
+        self.tid = sqlResult[1]
+        self.type = sqlResult[2]
+        self.endpoint_v6 = sqlResult[3]
+        self.endpoint_v6_prefix = sqlResult[4]
+        self.endpoint_v4 = sqlResult[5]
         self.user = user
         self.admin = admin
-        self.password = sqlResult[7]
-        self.heartbeat_interval = sqlResult[8]
-        self.mtu = sqlResult[9]
+        self.password = sqlResult[8]
+        self.heartbeat_interval = sqlResult[9]
+        self.mtu = sqlResult[10]
         self.pop = pop
 
 class SQLConnector:
     def __init__(self):
-        configger = configparser.ConfigParser()
-        configger.read('config/tic.ini')
-        host = configger.get("Database", "Host")
-        user = configger.get("Database", "User")
-        password = configger.get("Database", "Password")
-        database = configger.get("Database", "Database")
+        self.__configger = configparser.ConfigParser()
+        self.__configger.read('config/tic.ini')
+        host = self.__configger.get("Database", "Host")
+        user = self.__configger.get("Database", "User")
+        password = self.__configger.get("Database", "Password")
+        database = self.__configger.get("Database", "Database")
         
         self.conn = mysql.connector.connect(
             host=host,
@@ -107,7 +110,7 @@ class SQLConnector:
         # heartbeat_interval: int
         # mtu: int
         # pop_id: text foreign key (pops) no action not null      
-        # TODO: rework on db structure, as pop_v4 and pop_v6 field moved to another table.  
+        # COMPLETED: rework on db structure, as pop_v4 and pop_v6 field moved to another table.  
         cur.execute("""
             create table tunnels
             (
@@ -157,11 +160,22 @@ class SQLConnector:
     def addUser(self, thisUser: UserEntity):
         '''Add a user to the database.
         '''
+        self.logger.debug("Adding user: %s", thisUser)
         username = thisUser.username
         password = thisUser.password
+        
+        # work out the salted hash.
+        passwd_hasher = hashlib.md5()
+        passwd_hasher.update(password.encode("utf-8"))
+        passwd_hash = passwd_hasher.hexdigest()
+        passwd_hasher = hashlib.md5()
+        passwd_hash = self.__configger.get("Database", "Salt") + passwd_hash
+        passwd_hasher.update(passwd_hash.encode("utf-8"))
+        passwd_hash = passwd_hasher.hexdigest()
+        
         state = thisUser.state
         cur = self.conn.cursor()
-        cur.execute("insert into users (username, password, state) values (%s, %s)", (username, password, state))
+        cur.execute("insert into users (username, password, state) values (%s, %s, %s)", (username, passwd_hash, state))
         cur.close()
     
     def getUser(self, username: str) -> UserEntity:
@@ -188,6 +202,7 @@ class SQLConnector:
         cur.close()
         return thisUser
     
+    # DEPRECATED: Use updateUser.
     # def changePassword(self, user: UserEntity):
     #     '''Change the password of a user.
     #     '''
@@ -234,7 +249,7 @@ class SQLConnector:
         password = tunnel.password
         heartbeat_interval = tunnel.heartbeat_interval
         mtu = tunnel.mtu
-        pop_id = tunnel.pop.pop_id
+        pop_id = tunnel.pop.id
         cur = self.conn.cursor()
         cur.execute("insert into tunnels (tid, type, endpoint_v6, endpoint_v6_prefix, endpoint_v4, uid, admin_id, password, heartbeat_interval, mtu, pop_id) values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (tid, type, endpoint_v6, endpoint_v6_prefix, endpoint_v4, uid, admin_id, password, heartbeat_interval, mtu, pop_id))
         cur.close()
@@ -256,7 +271,7 @@ class SQLConnector:
         
         return TunnelEntity(theOne, user, admin, pop)
     
-    def listTunnels(self, uid: str) -> list[UserEntity]:              
+    def listTunnels(self, uid: str) -> list[TunnelEntity]:              
         '''List all tunnels of a user.
         '''
         cur = self.conn.cursor()
@@ -264,9 +279,9 @@ class SQLConnector:
         tunnels = cur.fetchall()
         resp = []
         for tunnel in tunnels:
-            user = self.getUser(tunnel[5])
-            admin = self.getUser(tunnel[6])
-            pop = self.getPop(tunnel[10])
+            user = self.getUser(tunnel[6])
+            admin = self.getUser(tunnel[7])
+            pop = self.getPop(tunnel[11])
             resp.append(TunnelEntity(tunnel, user, admin, pop))
         cur.close()
         
@@ -350,8 +365,9 @@ if __name__ == "__main__":
         # tEntity = TunnelEntity((tid, type, endpoint_v6, v6_pop, endpoint_v6_prefix, endpoint_v4, v4_pop, uid, admin_id, password, heartbeat_interval, mtu, pop_id), user, user)
         # sql.addTunnel(tEntity)
         # sql.setup()
-        pEntity = PopEntity(("desktop", "127.0.0.1", ""))
-        sql.addPop(pEntity)
+        # pEntity = PopEntity(("1", "desktop", "127.0.0.1", ""))
+        admin = UserEntity(1, "admin", "admin", "active")
+        sql.addUser(admin)
 
     except Exception as e:
         print(e)

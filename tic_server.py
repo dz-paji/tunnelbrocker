@@ -3,8 +3,8 @@ import configparser
 import time
 import threading
 import logging
-from sql_connector import SQLConnector, UserEntity
-import hashlib
+from sql_connector import SQLConnector, UserEntity, TunnelEntity
+from pop_connector import PopConnector
 
 class TicServer():
     '''Tunnel and Information server.
@@ -134,7 +134,7 @@ class TicServer():
                             return
                         case "md5":
                             # This should be random
-                            challenge = "60d11a81a26df3738026b1839644a1ae"
+                            challenge = self.__configparser.get("Database", "Salt")
                             challeng_resp = "200 " + challenge + "\n"
                             conn.send(challeng_resp.encode("utf-8"))
                             self.__clientStates.update({addr: ("md5", challenge)})
@@ -182,7 +182,7 @@ class TicServer():
                     # 202 /n
                     resp_msg = "201\n"
                     for i in self.__sql_connector.listTunnels(thisUser.uid):
-                        resp_msg += "%s %s %s %s\n" % (i.tid, i.endpoint_v6, i.endpoint_v4, i.pop_id)
+                        resp_msg += "%s %s %s %s\n" % (i.tid, i.endpoint_v6, i.endpoint_v4, i.pop.pop_id)
                     resp_msg += "202\n"
                     conn.send(resp_msg.encode("utf-8"))
                 elif data.startswith(b"tunnel show"):
@@ -193,7 +193,7 @@ class TicServer():
                     
                     # TunnelID, Type, v6 endpoint, v6 pop, v6 prefix length, pop id, v4 endpoint, v4 pop, user state, admin state, heartbeat interval, mtu
                     # TODO: Figure out what to do with userstate and admin state
-                    resp_msg += "%s %s %s %s %d %s %s %s %s %s %d %d\n" % (i.tid, i.type, i.endpoint_v6, i.v6_pop, i.endpoint_v6_prefix, i.pop_id, i.endpoint_v4, i.v4_pop, i.user.state, i.admin.state, i.heartbeat_interval, i.mtu)
+                    resp_msg += "%s %s %s %s %d %s %s %s %s %s %d %d\n" % (i.tid, i.type, i.endpoint_v6, i.pop.pop_v6, i.endpoint_v6_prefix, i.pop.pop_id, i.endpoint_v4, i.pop.pop_v4, i.user.state, i.admin.state, i.heartbeat_interval, i.mtu)
                     resp_msg += "202\n"
                     conn.send(resp_msg.encode("utf-8"))
                 
@@ -218,31 +218,60 @@ class TicServer():
     def authMe(self, username: str, password: str, addr) -> bool:
         '''Authenticate the client.
         '''
-        self.logger.debug("Authenticating %s, password: %s" % (username, password))
         user = self.__sql_connector.getUser(username)
         if user == None:
             return False
         else:
             # Get the challenge and method
             (method, challenge) = self.__clientStates[addr]
-            self.logger.debug("Challenge method: %s, challenge: %s" % (method, challenge))
+            self.logger.debug("%s's challenge method: %s, challenge: %s" % (username, method, challenge))
             match method:
                 case "md5":
-                    passwd_hasher = hashlib.md5()
-                    passwd_hasher.update(user.password.encode("utf-8"))
-                    passwd_md5 = passwd_hasher.hexdigest()
+                    # DEPRECATED: Database will store md5 with salt of password.
+                    # passwd_hasher = hashlib.md5()
+                    # passwd_hasher.update(user.password.encode("utf-8"))
+                    # passwd_md5 = passwd_hasher.hexdigest()
                     
-                    # some wired person thought it's funny to use OOP for md5. And you can't reuse it.
-                    signature = challenge + passwd_md5
-                    signature_hasher = hashlib.md5()
-                    signature_hasher.update(signature.encode("utf-8"))
-                    signature_hash = signature_hasher.hexdigest()
-                    self.logger.info("Client returned: %s" % signature_hash)
+                    # # some wired person thought it's funny to use OOP for md5. And you can't reuse it.
+                    # signature = challenge + passwd_md5
+                    # signature_hasher = hashlib.md5()
+                    # signature_hasher.update(signature.encode("utf-8"))
+                    # signature_hash = signature_hasher.hexdigest()
                     
-                    return signature_hash == password
+                    return user.password == password
+    
+    def addTunnel(self, tunnel: TunnelEntity, pop_id: str) -> bool:
+        """ Add a given tunnel to the pop and database.
+
+        Args:
+            tunnel (TunnelEntity): Tunnel awaiting.
+            pop_id (str): The pop that receives the tunnel.
+        """
+        thisPop = self.__sql_connector.getPop(pop_id)
+        connectString = thisPop.connectString()
+        flag = False
+        for i in connectString:
+            if i == None:
+                self.logger.error("Pop %s is not connectable" % pop_id)
+                return
+            try:
+                pop = PopConnector(i)
+                completeTunnel = pop.addTunnel(tunnel)
+                self.__sql_connector.addTunnel(completeTunnel)
+                flag = True
+                break
+            except ConnectionRefusedError:
+                self.logger.error("Pop %s refused connection via %s" % (pop_id, i))
+                
+        # No more connection can be made. 
+        if not flag:
+            self.logger.error("All connecting method exhausted. Failed to connect to pop %s" % pop_id)
+        
+        return flag
+            
                 
     def popCLI(self, pop_id: str):
-        '''Connects to a pop'''
+        """Connects to a pop"""
         pop_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         thisPop = self.__sql_connector.getPop(pop_id)
         connString = thisPop.connectString()
@@ -262,9 +291,8 @@ class TicServer():
             pop_socket.send(newLine.encode("utf-8"))
             data = pop_socket.recv(1024)
             self.logger.debug("Pop %s: %s" % (pop_id, data.decode("utf-8")))
-        
-        
 
 if __name__ == "__main__":
     tic_server = TicServer()
-    tic_server.popCLI("1")
+    tic_server.run()
+
