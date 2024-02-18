@@ -88,6 +88,8 @@ class TicServer():
             while True:
                 data = conn.recv(1024)
                 data = data.strip()
+                if not data:
+                    return
                 self.logger.debug("Received: " + data.decode("utf-8"))
                 self.logger.debug("TLS status: " + (self.__configparser.get("TLS", "Enable")))
                 if self.__configparser.getboolean("TLS", "Enable") and data.startswith(b"starttls"):
@@ -190,10 +192,11 @@ class TicServer():
                     self.logger.info("Client %s requested tunnel info %s." % (username, t_id))
                     i = self.__sql_connector.getTunnel(t_id)
                     resp_msg = "201\n"
-                    
+                    resp_msg += self.formatTunnelShow(i)
                     # TunnelID, Type, v6 endpoint, v6 pop, v6 prefix length, pop id, v4 endpoint, v4 pop, user state, admin state, heartbeat interval, mtu
                     # TODO: Figure out what to do with userstate and admin state
-                    resp_msg += "%s %s %s %s %d %s %s %s %s %s %d %d\n" % (i.tid, i.type, i.endpoint_v6, i.pop.pop_v6, i.endpoint_v6_prefix, i.pop.pop_id, i.endpoint_v4, i.pop.pop_v4, i.user.state, i.admin.state, i.heartbeat_interval, i.mtu)
+                    # COMPLETED: A tunnel cannot be used, if it's administratively active.
+                    # resp_msg += "%s %s %s %s %d %s %s %s %s %s %d %d\n" % (i.tid, i.type, i.endpoint_v6, i.pop.pop_v6, i.endpoint_v6_prefix, i.pop.pop_id, i.endpoint_v4, i.pop.pop_v4, i.user.state, i.admin.state, i.heartbeat_interval, i.mtu)
                     resp_msg += "202\n"
                     conn.send(resp_msg.encode("utf-8"))
                 
@@ -239,6 +242,32 @@ class TicServer():
                     # signature_hash = signature_hasher.hexdigest()
                     
                     return user.password == password
+                
+    def formatTunnelShow(self, i:TunnelEntity) -> str:
+        """Format the responmse message for a tunnel show command
+
+        Args:
+            i (TunnelEntity): The requested tunnel
+
+        Returns:
+            str: A string contains the response.
+        """
+        resp_msg = ""
+        resp_msg += f"TunnelId: {i.tid}\n"
+        resp_msg += f"Type: {i.type}\n"
+        resp_msg += f"IPv6 Endpoint: {i.endpoint_v6}\n"
+        resp_msg += f"IPv6 POP: {i.pop.pop_v6}\n"
+        resp_msg += f"IPv6 PrefixLength: {i.endpoint_v6_prefix}\n"
+        resp_msg += f"POP Id: {i.pop.pop_id}\n"
+        resp_msg += f"IPv4 Endpoint: {i.endpoint_v4}\n"
+        resp_msg += f"IPv4 POP: {i.pop.pop_v4}\n"
+        resp_msg += f"UserState: {i.user.state}\n"
+        resp_msg += f"AdminState: {i.admin.state}\n"
+        resp_msg += f"Password: {i.password}\n"
+        resp_msg += f"Heartbeat_Interval: {i.heartbeat_interval}\n"
+        resp_msg += f"MTU: {i.mtu}\n"
+        return resp_msg
+
     
     def addTunnel(self, tunnel: TunnelEntity, pop_id: str) -> bool:
         """ Add a given tunnel to the pop and database.

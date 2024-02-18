@@ -264,9 +264,9 @@ class SQLConnector:
             return None
         
         self.logger.debug("The one: %s", theOne)
-        user = self.getUserById(theOne[5])
-        admin = self.getUserById(theOne[6])
-        pop = self.getPop(theOne[10])
+        user = self.getUserById(theOne[6])
+        admin = self.getUserById(theOne[7])
+        pop = self.getPop(theOne[11])
         cur.close()
         
         return TunnelEntity(theOne, user, admin, pop)

@@ -134,15 +134,17 @@ def testMD5():
     password: admin
     challenge: 60d11a81a26df3738026b1839644a1ae
     '''
-    hash = hashlib.md5()
-    hash.update("admin".encode("utf-8"))
+    # hash = hashlib.md5()
+    hash = hashlib.sha256()
+    hash.update("60d11a81a26df3738026b1839644a1ae8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a91860d11a81a26df3738026b1839644a1a".encode("utf-8"))
     passwd_md5 = hash.hexdigest()
     print(passwd_md5)
-    signature = "60d11a81a26df3738026b1839644a1ae" + passwd_md5
-    newsig = "60d11a81a26df3738026b1839644a1ae21232f297a57a5a743894a0e4a801fc3"
-    anotherHash = hashlib.md5()
-    anotherHash.update(newsig.encode("utf-8"))
-    print (anotherHash.hexdigest())
+    print("length is " + str(len(passwd_md5)))
+    # signature = "60d11a81a26df3738026b1839644a1ae" + passwd_md5
+    # newsig = "60d11a81a26df3738026b1839644a1ae21232f297a57a5a743894a0e4a801fc3"
+    # anotherHash = hashlib.md5()
+    # anotherHash.update(newsig.encode("utf-8"))
+    # print (anotherHash.hexdigest())
     
 def typeTest():
     a = 1
@@ -152,6 +154,7 @@ def sprinfTest():
     print("%d" % "1")
     
 def testAddTunnel():
+    pass
     # idofT = "5"
     # tid = "T4155"
     # type = "10.2.0.5"
