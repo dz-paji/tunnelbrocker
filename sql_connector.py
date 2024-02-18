@@ -26,9 +26,16 @@ class PopEntity:
         self.pop_id = sqlResult[1]
         self.pop_v4 = sqlResult[3]
         self.pop_v6 = sqlResult[2]
+        self.city = sqlResult[4]
+        self.country = sqlResult[5]
+        self.isp_short = sqlResult[6]
+        self.isp_name = sqlResult[7]
+        self.isp_site = sqlResult[8]
+        self.isp_asn = sqlResult[9]
+        self.isp_lir = sqlResult[10]
 
     def __str__(self) -> str:
-        return "PopEntity (id: %s, pop_id: %s, IPv4: %s, IPv6: %s)" % (self.id, self.pop_id, self.pop_v4, self.pop_v6)
+        return "PopEntity (id: %s, pop_id: %s, IPv4: %s, IPv6: %s, City: %s, Country: %s)" % (self.id, self.pop_id, self.pop_v4, self.pop_v6, self.city, self.country)
     
     def connectString(self) -> list[str]:
         ''' Get the connection string of a pop. 

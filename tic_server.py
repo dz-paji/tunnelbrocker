@@ -3,7 +3,7 @@ import configparser
 import time
 import threading
 import logging
-from sql_connector import SQLConnector, UserEntity, TunnelEntity
+from sql_connector import SQLConnector, UserEntity, TunnelEntity, PopEntity
 from pop_connector import PopConnector
 
 class TicServer():
@@ -199,6 +199,11 @@ class TicServer():
                     # resp_msg += "%s %s %s %s %d %s %s %s %s %s %d %d\n" % (i.tid, i.type, i.endpoint_v6, i.pop.pop_v6, i.endpoint_v6_prefix, i.pop.pop_id, i.endpoint_v4, i.pop.pop_v4, i.user.state, i.admin.state, i.heartbeat_interval, i.mtu)
                     resp_msg += "202\n"
                     conn.send(resp_msg.encode("utf-8"))
+                elif data.startswith(b"pop show"):
+                    pop_id = data.strip().split(b" ")[2].decode("utf-8")
+                    pop = self.__sql_connector.getPop(pop_id)
+                    resp_msg = "201\n"
+                    
                 
         except socket.timeout:
             self.logger.error("Connection timeout.")
@@ -268,6 +273,27 @@ class TicServer():
         resp_msg += f"MTU: {i.mtu}\n"
         return resp_msg
 
+    def formatPopShow(self, i:PopEntity) -> str:
+        """Format the response message for a pop show command
+
+        Args:
+            i (PopEntity): The requested pop
+
+        Returns:
+            str: A string contains the response.
+        """
+        resp_msg = ""
+        resp_msg += f"POPId: {i.pop_id}\n"
+        resp_msg += f"City: {i.pop_v6}\n"
+        resp_msg += f"Country: {i.pop_v4}\n"
+        resp_msg += f"IPv4: {i.connectString()}\n"
+        resp_msg += f"IPv6: {i.connectString()}\n"
+        resp_msg += f"ISP Short: {i.state}\n"
+        resp_msg += f"ISP Name: {i.state}\n"
+        resp_msg += f"ISP Website: {i.state}\n"
+        resp_msg += f"ISP ASN: {i.state}\n"
+        resp_msg += f"ISP LIR: {i.state}\n"
+        return resp_msg
     
     def addTunnel(self, tunnel: TunnelEntity, pop_id: str) -> bool:
         """ Add a given tunnel to the pop and database.
