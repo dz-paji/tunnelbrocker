@@ -67,7 +67,7 @@ class TunnelEntity:
     """Tunnel entity"""
 
     def __init__(
-        self, sqlResult: tuple, user: UserEntity, admin: UserEntity, pop: PopEntity
+        self, sqlResult: tuple, user: UserEntity, pop: PopEntity
     ):
         self.id = sqlResult[0]
         self.tid = sqlResult[1]
