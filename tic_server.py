@@ -194,8 +194,6 @@ class TicServer():
                     resp_msg = "201\n"
                     resp_msg += self.formatTunnelShow(i)
                     # TunnelID, Type, v6 endpoint, v6 pop, v6 prefix length, pop id, v4 endpoint, v4 pop, user state, admin state, heartbeat interval, mtu
-                    # TODO: Figure out what to do with userstate and admin state
-                    # COMPLETED: A tunnel cannot be used, if it's administratively active.
                     # resp_msg += "%s %s %s %s %d %s %s %s %s %s %d %d\n" % (i.tid, i.type, i.endpoint_v6, i.pop.pop_v6, i.endpoint_v6_prefix, i.pop.pop_id, i.endpoint_v4, i.pop.pop_v4, i.user.state, i.admin.state, i.heartbeat_interval, i.mtu)
                     resp_msg += "202\n"
                     conn.send(resp_msg.encode("utf-8"))
@@ -203,6 +201,9 @@ class TicServer():
                     pop_id = data.strip().split(b" ")[2].decode("utf-8")
                     pop = self.__sql_connector.getPop(pop_id)
                     resp_msg = "201\n"
+                    resp_msg += self.formatPopShow(pop)
+                    resp_msg += "202\n"
+                    conn.send(resp_msg.encode("utf-8"))
                     
                 
         except socket.timeout:
@@ -280,19 +281,19 @@ class TicServer():
             i (PopEntity): The requested pop
 
         Returns:
-            str: A string contains the response.
+            str: A string contains the response for a single pop.
         """
         resp_msg = ""
         resp_msg += f"POPId: {i.pop_id}\n"
-        resp_msg += f"City: {i.pop_v6}\n"
-        resp_msg += f"Country: {i.pop_v4}\n"
-        resp_msg += f"IPv4: {i.connectString()}\n"
-        resp_msg += f"IPv6: {i.connectString()}\n"
-        resp_msg += f"ISP Short: {i.state}\n"
-        resp_msg += f"ISP Name: {i.state}\n"
-        resp_msg += f"ISP Website: {i.state}\n"
-        resp_msg += f"ISP ASN: {i.state}\n"
-        resp_msg += f"ISP LIR: {i.state}\n"
+        resp_msg += f"City: {i.city}\n"
+        resp_msg += f"Country: {i.country}\n"
+        resp_msg += f"IPv4: {i.pop_v4}\n"
+        resp_msg += f"IPv6: {i.pop_v6}\n"
+        resp_msg += f"ISP Short: {i.isp_short}\n"
+        resp_msg += f"ISP Name: {i.isp_name}\n"
+        resp_msg += f"ISP Website: {i.isp_site}\n"
+        resp_msg += f"ISP ASN: {i.isp_asn}\n"
+        resp_msg += f"ISP LIR: {i.isp_lir}\n"
         return resp_msg
     
     def addTunnel(self, tunnel: TunnelEntity, pop_id: str) -> bool:
