@@ -343,7 +343,7 @@ class SQLConnector:
         pop = self.getPop(theOne[12])
         cur.close()
 
-        return TunnelEntity(theOne, user, admin, pop)
+        return TunnelEntity(theOne, user, pop)
 
     def listTunnels(self, uid: str) -> list[TunnelEntity]:
         """List all tunnels of a user."""
@@ -354,7 +354,7 @@ class SQLConnector:
         for tunnel in tunnels:
             user = self.getUser(tunnel[6])
             pop = self.getPop(tunnel[12])
-            resp.append(TunnelEntity(tunnel, user, admin, pop))
+            resp.append(TunnelEntity(tunnel, user, pop))
         cur.close()
 
         return resp
