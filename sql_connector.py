@@ -222,10 +222,10 @@ class SQLConnector:
         password = thisUser.password
 
         # work out the salted hash.
-        passwd_hasher = hashlib.md5()
+        passwd_hasher = hashlib.sha256()
         passwd_hasher.update(password.encode("utf-8"))
         passwd_hash = passwd_hasher.hexdigest()
-        passwd_hasher = hashlib.md5()
+        passwd_hasher = hashlib.sha256()
         passwd_hash = self.__configger.get("Database", "Salt") + passwd_hash
         passwd_hasher.update(passwd_hash.encode("utf-8"))
         passwd_hash = passwd_hasher.hexdigest()
@@ -283,6 +283,7 @@ class SQLConnector:
     #     cur = self.conn.cursor()
     #     cur.execute("update users set state = %s where uid = %s", (state, uid))
 
+    #TODO: This thing need update with current db schema
     def updateUser(self, user: UserEntity):
         """Update a user."""
         uid = user.uid

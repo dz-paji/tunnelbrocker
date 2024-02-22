@@ -7,11 +7,10 @@ def sockethello():
     socket.connect(("localhost", 3874))
     socket.send(b"Hello World!")
 
-def config():
+def config() -> configparser.ConfigParser:
     configger = configparser.ConfigParser()
     configger.read('config/tic.ini')
-    field = configger.get("TLS", "Enable")
-    print(field + "->" + str(type(field)))
+    return configger
     
 def switchCase():
     a = 1
@@ -33,7 +32,7 @@ def testMD5():
     '''
     # hash = hashlib.md5()
     hash = hashlib.sha256()
-    hash.update("60d11a81a26df3738026b1839644a1ae8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a91860d11a81a26df3738026b1839644a1a".encode("utf-8"))
+    hash.update("admin".encode("utf-8"))
     passwd_md5 = hash.hexdigest()
     print(passwd_md5)
     print("length is " + str(len(passwd_md5)))
@@ -42,6 +41,17 @@ def testMD5():
     # anotherHash = hashlib.md5()
     # anotherHash.update(newsig.encode("utf-8"))
     # print (anotherHash.hexdigest())
+    
+def testSHA256():
+    hash = hashlib.sha256()
+    hash.update("admin".encode("utf-8"))
+    passwd_sha256 = hash.hexdigest()
+    print(f"password sha is {passwd_sha256}")
+    configger = config()
+    challenge = configger.get("Database", "Salt")
+    hash_2 = hashlib.sha256()
+    hash_2.update((challenge + passwd_sha256).encode("utf-8"))
+    print(f"challenge sha is {hash_2.hexdigest()}")
     
 def typeTest():
     a = 1
@@ -82,4 +92,4 @@ if __name__ == "__main__":
     # signature = "60d11a81a26df3738026b1839644a1ae" + passwd_md5
     # md5.update(signature.encode("utf-8"))
     # print(md5.final().hex())
-    whatIsTheLength()
+    testSHA256()

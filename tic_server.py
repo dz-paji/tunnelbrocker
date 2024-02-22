@@ -18,18 +18,9 @@ class TicServer():
         # logging
         logging.basicConfig(level=logging.DEBUG)
         self.logger = logging.getLogger("TIC")
-        handler = logging.StreamHandler()
-        # handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
-        # handler.setLevel(logging.INFO)
-        # debug_handler = logging.StreamHandler()
-        # debug_handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
-        # debug_handler.setLevel(logging.DEBUG)
-        # self.logger.addHandler(debug_handler)
-        # self.logger.addHandler(handler)
     
         # bind port 3874 for TIC.
         self.__server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        
         if (self.__configparser.has_option("Address", "Server_Address")):
             self.__server_socket.bind((self.__configparser.get("Address", "Server_Address"), 3874))
         else:
@@ -134,12 +125,19 @@ class TicServer():
                             conn.send(b"400 Not supported\n")
                             conn.close()
                             return
-                        case "md5":
-                            # This should be random
+                        # DEPRECATED: use sha256 now.
+                        # case "md5":
+                        #     # This should be random
+                        #     challenge = self.__configparser.get("Database", "Salt")
+                        #     challeng_resp = "200 " + challenge + "\n"
+                        #     conn.send(challeng_resp.encode("utf-8"))
+                        #     self.__clientStates.update({addr: ("md5", challenge)})
+                        case "sha256":
                             challenge = self.__configparser.get("Database", "Salt")
                             challeng_resp = "200 " + challenge + "\n"
                             conn.send(challeng_resp.encode("utf-8"))
-                            self.__clientStates.update({addr: ("md5", challenge)})
+                            self.__clientStates.update({addr: ("sha256", challenge)})
+                        
                         case _:
                             conn.send(b"400 Bad Request\n")
                             conn.close()           
@@ -196,6 +194,7 @@ class TicServer():
                     # TunnelID, Type, v6 endpoint, v6 pop, v6 prefix length, pop id, v4 endpoint, v4 pop, user state, admin state, heartbeat interval, mtu
                     # resp_msg += "%s %s %s %s %d %s %s %s %s %s %d %d\n" % (i.tid, i.type, i.endpoint_v6, i.pop.pop_v6, i.endpoint_v6_prefix, i.pop.pop_id, i.endpoint_v4, i.pop.pop_v4, i.user.state, i.admin.state, i.heartbeat_interval, i.mtu)
                     resp_msg += "202\n"
+                    self.logger.debug("Tunnnel show response: " + resp_msg)
                     conn.send(resp_msg.encode("utf-8"))
                 elif data.startswith(b"pop show"):
                     pop_id = data.strip().split(b" ")[2].decode("utf-8")
@@ -235,7 +234,8 @@ class TicServer():
             (method, challenge) = self.__clientStates[addr]
             self.logger.debug("%s's challenge method: %s, challenge: %s" % (username, method, challenge))
             match method:
-                case "md5":
+                # DEPRECATED: use sha256.
+                # case "md5":
                     # DEPRECATED: Database will store md5 with salt of password.
                     # passwd_hasher = hashlib.md5()
                     # passwd_hasher.update(user.password.encode("utf-8"))
@@ -247,7 +247,10 @@ class TicServer():
                     # signature_hasher.update(signature.encode("utf-8"))
                     # signature_hash = signature_hasher.hexdigest()
                     
+                    # return user.password == password
+                case "sha256":
                     return user.password == password
+                    
                 
     def formatTunnelShow(self, i:TunnelEntity) -> str:
         """Format the responmse message for a tunnel show command
@@ -324,7 +327,14 @@ class TicServer():
             self.logger.error("All connecting method exhausted. Failed to connect to pop %s" % pop_id)
         
         return flag
-            
+    
+    def popSave(self, pop_id: str):
+        """Tell a pop to save its current configs
+
+        Args:
+            pop_id (str): pop_id
+        """
+        pass
                 
     def popCLI(self, pop_id: str):
         """Connects to a pop"""
