@@ -1,6 +1,8 @@
 import socket
 import configparser
 import hashlib
+import ssl
+import sys, os
 
 def sockethello():
     socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -83,7 +85,19 @@ def testAddTunnel():
     # print(pop)
     # tEntity = TunnelEntity((idofT, tid,  type, endpoint_v6, endpoint_v6_prefix, endpoint_v4, uid, admin_id, password, heartbeat_interval, mtu, pop_id), user, user, pop)
     # tic_server.addTunnel(tEntity, pop_id)
-
+    
+def testTLS():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.load_cert_chain("certs/cer.cer", "certs/key.key")
+    sock = ctx.wrap_socket(sock, server_side=True, do_handshake_on_connect=False)
+    sock.bind(("localhost", 20089))
+    sock.listen(0)
+    while True:
+        conn, addr = sock.accept()
+        print(conn.recv(1024))
+        conn.send(b"Hello World!")
+        conn.close()
     
 if __name__ == "__main__":
     # md5 = MD5Context()
@@ -92,4 +106,4 @@ if __name__ == "__main__":
     # signature = "60d11a81a26df3738026b1839644a1ae" + passwd_md5
     # md5.update(signature.encode("utf-8"))
     # print(md5.final().hex())
-    testSHA256()
+    testTLS()
