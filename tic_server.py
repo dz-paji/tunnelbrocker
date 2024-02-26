@@ -54,92 +54,85 @@ class TicServer():
         username = "" # for authentication
         
         try:
-            if not isTLS:
-                self.logger.debug("Not yet in TLS.")
-                # Send welcome message. What really useful is the first char.
-                # remeber to add \n at the end of the message...
-                welcome_msg = "200 TIC on %s ready (%s) \n" % (self.__configparser.get("Address", "Server_Name"), self.__configparser.get("Contact", "Website"))
-                conn.send(welcome_msg.encode("utf-8"))
+            self.logger.debug("Not yet in TLS.")
+            # Send welcome message. What really useful is the first char.
+            # remeber to add \n at the end of the message...
+            welcome_msg = "200 TIC on %s ready (%s) \n" % (self.__configparser.get("Address", "Server_Name"), self.__configparser.get("Contact", "Website"))
+            conn.send(welcome_msg.encode("utf-8"))
             
+            data = conn.recv(1024)
+            # here the client will sendback its version and runtime. could be useful for statistics.
+            self.logger.info("%s client version: %s" % (str(addr), data.decode("utf-8")))
+            
+            conn.send(b"200 OK\n")
+            self.__clientStates.update({addr: "joined"})            
+            data = conn.recv(1024) 
+            # here the client should request timestamp.
+            if data == b"get unixtime\n":
+                self.logger.info("Client %s requested timestamp." % str(addr))
+                result = "200 " + self.getTimestamp() + "\n"
+                conn.send(result.encode("utf-8"))
+            else:
+                conn.send(b"400 Bad Request\n")
+                conn.close()
+                return
+            
+            while True:
                 data = conn.recv(1024)
-                # here the client will sendback its version and runtime. could be useful for statistics.
-                self.logger.info("%s client version: %s" % (str(addr), data.decode("utf-8")))
-            
-                conn.send(b"200 OK\n")
-                self.__clientStates.update({addr: "joined"})
-            
-                data = conn.recv(1024) 
-                # here the client should request timestamp.
-                if data == b"get unixtime\n":
-                    self.logger.info("Client %s requested timestamp." % str(addr))
-                    result = "200 " + self.getTimestamp() + "\n"
-                    conn.send(result.encode("utf-8"))
-                else:
-                    conn.send(b"400 Bad Request\n")
-                    conn.close()
+                data = data.strip()
+                if not data:
                     return
-            
-                while True:
-                    data = conn.recv(1024)
-                    data = data.strip()
-                    if not data:
-                        return
-                    self.logger.debug("Received: " + data.decode("utf-8"))
-                    self.logger.debug("TLS status: " + (self.__configparser.get("TLS", "Enable")))
-                    if self.__configparser.getboolean("TLS", "Enable") and data.startswith(b"starttls"):
-                        # wrap socket with TLS.
-                        self.logger.debug("Client %s requested TLS." % str(addr))
-                        conn.send(b"200 Welcome to secured connections.\n")
-                        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-                        context.load_cert_chain(self.__configparser.get("TLS", "Cert"), self.__configparser.get("TLS", "Key"))
-                        secure_conn = context.wrap_socket(conn, server_side=True)
-                        # secure_conn.do_handshake()
-                        # going into tls.
-                        threading.Thread(target=self.clientThread, args=(secure_conn, addr, True)).start()
+                self.logger.debug("Received: " + data.decode("utf-8"))
+                if self.__configparser.getboolean("TLS", "Enable") and data.startswith(b"starttls"):
+                    # wrap socket with TLS.
+                    self.logger.debug("Client %s requested TLS." % str(addr))
+                    conn.send(b"200 \n")
+                    context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+                    context.load_cert_chain(self.__configparser.get("TLS", "Cert"), self.__configparser.get("TLS", "Key"))
+                    
+                    # FLAG: No TLS1.3 support. Only TLS1.2 will do.
+                    secure_conn = context.wrap_socket(conn, server_side=True)
+                    # secure_conn.do_handshake()
+                    # going into tls.
+                    conn = secure_conn
+                    self.logger.debug("Client %s in TLS mode." % str(addr))
+
+                if data.startswith(b"get unixtime"):
+                    # get timestamp
+                    self.logger.info("Client %s requested timestamp." % str(addr))
+                    timestamp = self.getTimestamp() + "\n"
+                    conn.send(timestamp.encode("utf-8"))
+                elif data.startswith(b"username"):
+                    # here the client sends its username. check against the database.
+                    username = data.split(b" ")[1].decode("utf-8")
+                    username = username.strip()
+                    self.logger.debug("Client on %s identified itself as %s" % (str(addr), username))
+                    dbUser = self.__sql_connector.getUser(username)
+                    self.logger.debug("User %s found in database." % dbUser)
+
+                    if dbUser == None:
+                        conn.send(b"400 No such user\n")
+                        conn.close()
                         return
                     else:
-                        pass
-            else:
-                while True:
-                    # TLS connection
-                    self.logger.debug("In TLS.")
-                    data = conn.recv(1024)
-                    if data.startswith(b"get unixtime"):
-                        # get timestamp
-                        self.logger.info("Client %s requested timestamp." % str(addr))
-                        timestamp = self.getTimestamp() + "\n"
-                        conn.send(timestamp.encode("utf-8"))
-                    elif data.startswith(b"username"):
-                        # here the client sends its username. check against the database.
-                        username = data.split(b" ")[1].decode("utf-8")
-                        username = username.strip()
-                        self.logger.debug("Client on %s identified itself as %s" % (str(addr), username))
-                        dbUser = self.__sql_connector.getUser(username)
-                        self.logger.debug("User %s found in database." % dbUser)
+                        self.logger.info("We now have client %s on %s" % (username, str(addr)))
+                        conn.send(b"200 OK\n")
+                elif data.startswith(b"challenge"):
+                    # Original draft specifies md5, cookie and clear. Here we only support sha256.
+                    challenge_method = data.split(b" ")[1].decode("utf-8")
+                    challenge_method = challenge_method.strip()
+                    self.logger.info("Client %s on %s suggested challenge: %s" % (username, str(addr), challenge_method))
                     
-                        if dbUser == None:
-                            conn.send(b"400 No such user\n")
+                    # check challenge method
+                    match challenge_method:
+                        case "clear":
+                            conn.send(b"400 Not supported\n")
                             conn.close()
                             return
-                        else:
-                            self.logger.info("We now have client %s on %s" % (username, str(addr)))
-                            conn.send(b"200 OK\n")
-                    elif data.startswith(b"challenge"):
-                        # should support clear, cookie and md5. However not sure how cookie and clear works.
-                        challenge_method = data.split(b" ")[1].decode("utf-8")
-                        challenge_method = challenge_method.strip()
-                        self.logger.info("Client %s on %s suggested challenge: %s" % (username, str(addr), challenge_method))
-                    
-                        # check challenge method
-                        match challenge_method:
-                            case "clear":
-                                conn.send(b"400 Not supported\n")
-                                conn.close()
-                                return
-                            case "cookie":
-                                conn.send(b"400 Not supported\n")
-                                conn.close()
-                                return
+                        case "cookie":
+                            conn.send(b"400 Not supported\n")
+                            conn.close()
+                            return
                         # DEPRECATED: use sha256 now.
                         # case "md5":
                         #     # This should be random
@@ -147,77 +140,77 @@ class TicServer():
                         #     challeng_resp = "200 " + challenge + "\n"
                         #     conn.send(challeng_resp.encode("utf-8"))
                         #     self.__clientStates.update({addr: ("md5", challenge)})
-                            case "sha256":
-                                challenge = self.__configparser.get("Database", "Salt")
-                                challeng_resp = "200 " + challenge + "\n"
-                                conn.send(challeng_resp.encode("utf-8"))
-                                self.__clientStates.update({addr: ("sha256", challenge)})
+                        case "sha256":
+                            challenge = self.__configparser.get("Database", "Salt")
+                            challeng_resp = "200 " + challenge + "\n"
+                            conn.send(challeng_resp.encode("utf-8"))
+                            self.__clientStates.update({addr: ("sha256", challenge)})
 
-                            case _:
-                                conn.send(b"400 Bad Request\n")
-                                conn.close()           
-                    elif data.startswith(b"authenticate"):
-                        # client sends authentication string
-                        self.logger.info("Client %s on %s wants authenticate." % (username, str(addr)))
-                        # make sure the user identified itself and the challenge method.
-                        if username == "":
-                            conn.send(b"400 Please identify yourself\n")
-                            continue
-                        elif self.__clientStates[addr] == "joined":
-                            conn.send(b"400 Please challenge first\n")
-                            continue
+                        case _:
+                            conn.send(b"400 Bad Request\n")
+                            conn.close()           
+                elif data.startswith(b"authenticate"):
+                    # client sends authentication string
+                    self.logger.info("Client %s on %s wants authenticate." % (username, str(addr)))
+                    # make sure the user identified itself and the challenge method.
+                    if username == "":
+                        conn.send(b"400 Please identify yourself\n")
+                        continue
+                    elif self.__clientStates[addr] == "joined":
+                        conn.send(b"400 Please challenge first\n")
+                        continue
+                    else:
+                        passwd = data.split(b" ")[2].decode("utf-8")
+                        passwd = passwd.strip()
+                        auth_flag = self.authMe(username, passwd, addr)
+                        if auth_flag:
+                            self.logger.info("Client %s on %s authenticated." % (username, str(addr)))
+                            conn.send(b"200 OK\n")
+
+                            # bind address with user
+                            this_user = self.__sql_connector.getUser(username)
+                            self.__clientStates.update({addr: this_user})
                         else:
-                            passwd = data.split(b" ")[2].decode("utf-8")
-                            passwd = passwd.strip()
-                            auth_flag = self.authMe(username, passwd, addr)
-                            if auth_flag:
-                                self.logger.info("Client %s on %s authenticated." % (username, str(addr)))
-                                conn.send(b"200 OK\n")
-
-                                # bind address with user
-                                this_user = self.__sql_connector.getUser(username)
-                                self.__clientStates.update({addr: this_user})
-                            else:
-                                self.logger.info("Login failed for client %s on %s." % (username, str(addr)))
-                                conn.send(b"400 Failed\n")
-                                conn.close()
-                                return
-                    elif data.startswith(b"tunnel list"):
-                        self.logger.info("Client %s requested tunnel list." % (username, ))
-                        thisUser = self.__clientStates[addr]
-                    
-                        # check login
-                        if type(thisUser) != UserEntity:
-                            conn.send(b"400 Please authenticate first\n")
+                            self.logger.info("Login failed for client %s on %s." % (username, str(addr)))
+                            conn.send(b"400 Failed\n")
                             conn.close()
                             return
+                elif data.startswith(b"tunnel list"):
+                    self.logger.info("Client %s requested tunnel list." % (username, ))
+                    thisUser = self.__clientStates[addr]
+                    
+                    # check login
+                    if type(thisUser) != UserEntity:
+                        conn.send(b"400 Please authenticate first\n")
+                        conn.close()
+                        return
                     
                         # 201 /n
                         # tunnel_id, ipv6, ipv4, popid /n
                         # 202 /n
-                        resp_msg = "201\n"
-                        for i in self.__sql_connector.listTunnels(thisUser.uid):
-                            resp_msg += "%s %s %s %s\n" % (i.tid, i.endpoint_v6, i.endpoint_v4, i.pop.pop_id)
-                        resp_msg += "202\n"
-                        conn.send(resp_msg.encode("utf-8"))
-                    elif data.startswith(b"tunnel show"):
-                        t_id = data.strip().split(b" ")[2].decode("utf-8")
-                        self.logger.info("Client %s requested tunnel info %s." % (username, t_id))
-                        i = self.__sql_connector.getTunnel(t_id)
-                        resp_msg = "201\n"
-                        resp_msg += self.formatTunnelShow(i)
-                        # TunnelID, Type, v6 endpoint, v6 pop, v6 prefix length, pop id, v4 endpoint, v4 pop, user state, admin state, heartbeat interval, mtu
-                        # resp_msg += "%s %s %s %s %d %s %s %s %s %s %d %d\n" % (i.tid, i.type, i.endpoint_v6, i.pop.pop_v6, i.endpoint_v6_prefix, i.pop.pop_id, i.endpoint_v4, i.pop.pop_v4, i.user.state, i.admin.state, i.heartbeat_interval, i.mtu)
-                        resp_msg += "202\n"
-                        self.logger.debug("Tunnnel show response: " + resp_msg)
-                        conn.send(resp_msg.encode("utf-8"))
-                    elif data.startswith(b"pop show"):
-                        pop_id = data.strip().split(b" ")[2].decode("utf-8")
-                        pop = self.__sql_connector.getPop(pop_id)
-                        resp_msg = "201\n"
-                        resp_msg += self.formatPopShow(pop)
-                        resp_msg += "202\n"
-                        conn.send(resp_msg.encode("utf-8"))                
+                    resp_msg = "201\n"
+                    for i in self.__sql_connector.listTunnels(thisUser.uid):
+                        resp_msg += "%s %s %s %s\n" % (i.tid, i.endpoint_v6, i.endpoint_v4, i.pop.pop_id)
+                    resp_msg += "202\n"
+                    conn.send(resp_msg.encode("utf-8"))
+                elif data.startswith(b"tunnel show"):
+                    t_id = data.strip().split(b" ")[2].decode("utf-8")
+                    self.logger.info("Client %s requested tunnel info %s." % (username, t_id))
+                    i = self.__sql_connector.getTunnel(t_id)
+                    resp_msg = "201\n"
+                    resp_msg += self.formatTunnelShow(i)
+                    # TunnelID, Type, v6 endpoint, v6 pop, v6 prefix length, pop id, v4 endpoint, v4 pop, user state, admin state, heartbeat interval, mtu
+                    # resp_msg += "%s %s %s %s %d %s %s %s %s %s %d %d\n" % (i.tid, i.type, i.endpoint_v6, i.pop.pop_v6, i.endpoint_v6_prefix, i.pop.pop_id, i.endpoint_v4, i.pop.pop_v4, i.user.state, i.admin.state, i.heartbeat_interval, i.mtu)
+                    resp_msg += "202\n"
+                    self.logger.debug("Tunnnel show response: " + resp_msg)
+                    conn.send(resp_msg.encode("utf-8"))
+                elif data.startswith(b"pop show"):
+                    pop_id = data.strip().split(b" ")[2].decode("utf-8")
+                    pop = self.__sql_connector.getPop(pop_id)
+                    resp_msg = "201\n"
+                    resp_msg += self.formatPopShow(pop)
+                    resp_msg += "202\n"
+                    conn.send(resp_msg.encode("utf-8"))                
         except socket.timeout:
             self.logger.error("Connection timeout.")
             conn.close()

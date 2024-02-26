@@ -98,6 +98,10 @@ def testTLS():
         print(conn.recv(1024))
         conn.send(b"Hello World!")
         conn.close()
+        
+def testTLSVer():
+    from urllib.request import urlopen
+    urlopen('https://www.howsmyssl.com/a/check').read()
     
 if __name__ == "__main__":
     # md5 = MD5Context()
@@ -106,4 +110,4 @@ if __name__ == "__main__":
     # signature = "60d11a81a26df3738026b1839644a1ae" + passwd_md5
     # md5.update(signature.encode("utf-8"))
     # print(md5.final().hex())
-    testTLS()
+    testTLSVer()
