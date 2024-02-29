@@ -87,7 +87,9 @@ class TicServer():
                     # wrap socket with TLS.
                     self.logger.debug("Client %s requested TLS." % str(addr))
                     conn.send(b"200 \n")
-                    context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+                    context = ssl.SSLContext(ssl.PROTOCOL_TLS)
+                    context.minimum_version = ssl.TLSVersion.TLSv1_2
+                    context.maximum_version = ssl.TLSVersion.TLSv1_2
                     context.load_cert_chain(self.__configparser.get("TLS", "Cert"), self.__configparser.get("TLS", "Key"))
                     
                     # FLAG: No TLS1.3 support. Only TLS1.2 will do.

@@ -1,0 +1,4 @@
+AYIYA:
+Add hash field value 0x4 to represent SHA256 (previously 0x0 for none; 0x1 for md5; 0x2 for SHA1, 0x3 is reserved for universal hashing, as in AICCU).
+Modify sixxsd_tunnel structure. Add ayiya_sha256 field.
+ayiya_hash_name add type SHA256.
