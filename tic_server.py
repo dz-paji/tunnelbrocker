@@ -282,7 +282,7 @@ class TicServer():
         resp_msg += f"AdminState: {i.admin_state}\n"
         resp_msg += f"Password: {i.password}\n"
         resp_msg += f"Heartbeat_Interval: {i.heartbeat_interval}\n"
-        resp_msg += f"MTU: {i.mtu}\n"
+        resp_msg += f"Tunnel MTU: {i.mtu}\n"
         return resp_msg
 
     def formatPopShow(self, i:PopEntity) -> str:
