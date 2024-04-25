@@ -44,6 +44,7 @@ class Proto41Handler:
         # return False
     
     def decapsulate(self, packet: bytes):
+        # When a packet from the tunnel
         ipv4_header = packet[:20]
         header_v4 = struct.unpack('!BBHHHBBH4s4s', ipv4_header)
         src_v4 = header_v4[8]
@@ -79,6 +80,7 @@ class Proto41Handler:
         return new_packet, dst_ipv6
     
     def encapsulate(self, packet):
+        # When a packet from the internet.
         ipv6_header = struct.unpack('!IHBB16s16s', packet[:40])
         src_ipv6 = ipv6_header[4]
         dst_ipv6 = ipv6_header[5]
