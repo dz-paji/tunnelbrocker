@@ -82,7 +82,26 @@ class TunnelEntity:
         self.heartbeat_interval = sqlResult[10]
         self.mtu = sqlResult[11]
         self.pop = pop
-
+        
+    def __str__(self) -> str:
+        return (
+            "TunnelEntity %s (id: %s, type: %s, endpoint_v6: %s, endpoint_v6_prefix: %s, endpoint_v4: %s, user: %s, user_state: %s, admin_state: %s, password: %s, heartbeat_interval: %s, mtu: %s, pop: %s)"
+            % (
+                self.tid,
+                self.id,
+                self.type,
+                self.endpoint_v6,
+                self.endpoint_v6_prefix,
+                self.endpoint_v4,
+                self.user.username,
+                self.user_state,
+                self.admin_state,
+                self.password,
+                self.heartbeat_interval,
+                self.mtu,
+                self.pop.pop_id,
+            )
+        )
 
 class SQLConnector:
     def __init__(self):
@@ -289,11 +308,21 @@ class SQLConnector:
         uid = user.uid
         username = user.username
         password = user.password
+        
+        # work out the salted hash.
+        passwd_hasher = hashlib.sha256()
+        passwd_hasher.update(password.encode("utf-8"))
+        passwd_hash = passwd_hasher.hexdigest()
+        passwd_hasher = hashlib.sha256()
+        passwd_hash = self.__configger.get("Database", "Salt") + passwd_hash
+        passwd_hasher.update(passwd_hash.encode("utf-8"))
+        passwd_hash = passwd_hasher.hexdigest()
+
         state = user.state
         cur = self.conn.cursor()
         cur.execute(
             "update users set username = %s, password = %s, state = %s where uid = %s",
-            (username, password, state, uid),
+            (username, passwd_hash, state, uid),
         )
         cur.close()
 
@@ -376,8 +405,8 @@ class SQLConnector:
                 tunnel.password,
                 tunnel.heartbeat_interval,
                 tunnel.mtu,
-                tunnel.tid,
                 tunnel.pop.id,
+                tunnel.tid,
             ),
         )
         cur.close()
@@ -418,8 +447,8 @@ class SQLConnector:
         """Add a pop to the database."""
         cur = self.conn.cursor()
         cur.execute(
-            "insert into pops (pop_id, v6_pop, v4_pop) values (%s, %s, %s)",
-            (pop.pop_id, pop.pop_v6, pop.pop_v4),
+            "insert into pops (pop_id, v6_pop, v4_pop, city, country, isp_short, isp_name, isp_site, isp_asn, isp_lir) values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            (pop.pop_id, pop.pop_v6, pop.pop_v4, pop.city, pop.country, pop.isp_short, pop.isp_name, pop.isp_site, pop.isp_asn, pop.isp_lir),
         )
         cur.close()
 

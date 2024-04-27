@@ -17,7 +17,7 @@ class TicServer():
         self.__clientStates = {} # {addr: state(joined, clear|md5, UserEntity)}
         
         # logging
-        logging.basicConfig(level=logging.DEBUG)
+        logging.basicConfig(level=logging.ERROR)
         self.logger = logging.getLogger("TIC")
     
         # bind port 3874 for TIC.
