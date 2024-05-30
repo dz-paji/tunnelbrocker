@@ -163,3 +163,6 @@ cython_debug/
 Scripts
 pyvenv.cfg
 cloc-1.98.exe
+
+# certs
+certs/

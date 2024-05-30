@@ -1,0 +1,241 @@
+commit 4a723150e6db54d61cebed5a506cdd19e1ab4b00
+Author: dz-paji <i@paji.uk>
+Date:   Sat Apr 27 17:58:00 2024 +0100
+
+    add cli
+
+commit 179e5d96bd358b27acd8f3baa8d35c77256b69de
+Author: dz-paji <i@paji.uk>
+Date:   Fri Apr 26 00:51:48 2024 +0100
+
+    docs
+
+commit 578434fb857826579408ae729d77c8284bef51ba
+Author: dz-paji <i@paji.uk>
+Date:   Mon Mar 4 01:10:09 2024 +0000
+
+    Fix MTU bug
+
+commit 1fb11cc79eda894c4b12e0a212f189931171a07a
+Author: dz-paji <i@paji.uk>
+Date:   Thu Feb 29 21:43:20 2024 +0000
+
+    use tls1.2
+    
+    aiccu's problem with tls1.3 not solved yet. downgrade to 1.2
+
+commit 86e046124bde94e2fc15b4714a5c1dc9a0935de6
+Author: dz-paji <i@paji.uk>
+Date:   Mon Feb 26 12:22:04 2024 +0000
+
+    fix tls bug
+
+commit 8106519c1557ef09b5f9764f8375ae168c8bdc12
+Author: dz-paji <i@paji.uk>
+Date:   Mon Feb 26 01:24:19 2024 +0000
+
+    tls with ssl. separated threads.
+
+commit 306e6f7c86cbca5fcf3b150020851642ed2a0ecb
+Author: dz-paji <i@paji.uk>
+Date:   Thu Feb 22 22:24:06 2024 +0000
+
+    update login method to sha256
+
+commit e98a9cf025d8be1fb3b1079dc99c26d106372b34
+Author: dz_paji <zhangqian2002@outlook.com>
+Date:   Mon Feb 19 12:18:22 2024 +0000
+
+    fix pop show bug
+
+commit 6664c3ba9cfaa5c3893123da2ea26180401eb055
+Author: dz_paji <zhangqian2002@outlook.com>
+Date:   Mon Feb 19 12:14:39 2024 +0000
+
+    tunnelentity bug fix
+
+commit cad4839b04dbe6d1b1343c81d2cf9ce333e03bd2
+Author: dz_paji <zhangqian2002@outlook.com>
+Date:   Mon Feb 19 12:14:24 2024 +0000
+
+    tunnelentity bug fix
+
+commit c934931bdb980e823a841496697a84bc47dcf663
+Author: dz_paji <zhangqian2002@outlook.com>
+Date:   Mon Feb 19 12:03:25 2024 +0000
+
+    restructure db
+
+commit f7b24054232b25c3a71c898751a1dc3f6ce518df
+Author: dz-paji <i@paji.uk>
+Date:   Sun Feb 18 23:19:36 2024 +0000
+
+    support pop show command
+
+commit 0401483ef7269e7dedf71b14fc62a7fc49955fda
+Author: dz-paji <i@paji.uk>
+Date:   Sun Feb 18 22:14:51 2024 +0000
+
+    bug fix
+
+commit d84b0f513b6958fa7f973a13fd849b97e37855d8
+Author: dz_paji <zhangqian2002@outlook.com>
+Date:   Mon Feb 12 10:14:48 2024 +0000
+
+    move code
+
+commit 24b885afc4db307ab6fe18a0562bbf3ebea2ad5d
+Author: dz-paji <i@paji.uk>
+Date:   Sun Feb 11 18:17:44 2024 +0000
+
+    implement tunnel add
+
+commit 81b73d1cf6df46af8292f564b83a0ff745e75a4c
+Author: dz-paji <i@paji.uk>
+Date:   Thu Feb 8 22:31:32 2024 +0000
+
+    link with sixxsd
+
+commit 73828218132d4e578194e603b99b1706b24e9603
+Author: dz-paji <i@paji.uk>
+Date:   Thu Feb 8 17:26:42 2024 +0000
+
+    db fix and admin cli
+
+commit 1cdce0e5a23456811bf0db6c8c9f2b5e5160228a
+Author: dz_paji <zhangqian2002@outlook.com>
+Date:   Thu Feb 8 12:46:24 2024 +0000
+
+    pop entity
+
+commit b7f5256154671ede39ca222af4a1c6704a3218b1
+Author: dz-paji <i@paji.uk>
+Date:   Wed Feb 7 22:25:50 2024 +0000
+
+    Update .gitignore
+
+commit abb754e19c36214c5d4555c1f246a5507b8ea50e
+Author: dz-paji <i@paji.uk>
+Date:   Wed Feb 7 22:18:44 2024 +0000
+
+    complete tunnel get
+
+commit 46960315d07160c8c27c14a3b0ac8593d047382b
+Author: dz_paji <zhangqian2002@outlook.com>
+Date:   Mon Feb 5 12:22:34 2024 +0000
+
+    change tunnel table
+
+commit 1325aa7ab2c049cc55bb0d02f862c0803bee55be
+Author: dz-paji <i@paji.uk>
+Date:   Sun Feb 4 23:27:15 2024 +0000
+
+    Update sql_connector.py
+
+commit 6292fdd270262c0090d02177ea492c198e76da70
+Author: dz-paji <i@paji.uk>
+Date:   Sun Feb 4 22:45:36 2024 +0000
+
+    tic login
+
+commit 7229d24d89b703b464d4991447df7ec962b9b55c
+Author: dz-paji <i@paji.uk>
+Date:   Fri Feb 2 18:53:01 2024 +0000
+
+    implement db
+
+commit 317f937d6432e9b9ddeed4d7e9117bebe33c29c4
+Author: dz-paji <i@paji.uk>
+Date:   Fri Feb 2 17:00:17 2024 +0000
+
+    Add requirements
+
+commit 6469a74490245dc72f42c329f47267f30377ddee
+Author: dz-paji <i@paji.uk>
+Date:   Thu Feb 1 21:00:50 2024 +0000
+
+    im done for today :p
+
+commit 198a3649a48aaf583f8d787fa2d250db3def00a3
+Author: dz-paji <i@paji.uk>
+Date:   Mon Jan 15 20:42:03 2024 +0000
+
+    remove reports
+
+commit 4fb082d54bcf294f8d40af87357e9c7f993a033c
+Author: dz-paji <i@paji.uk>
+Date:   Mon Dec 4 12:30:16 2023 +0000
+
+    report template
+
+commit 092fd8940505c2c08a8007ac2d0f02945209cde9
+Author: dz_paji <zhangqian2002@outlook.com>
+Date:   Mon Nov 27 18:48:28 2023 +0000
+
+    minor fix
+
+commit e8e726cbfcb6d6779c5953f22fe0feccbc1f190f
+Author: dz_paji <zhangqian2002@outlook.com>
+Date:   Mon Nov 27 00:25:09 2023 +0000
+
+    implement heartbeat
+
+commit 8661808246b744b28cc77a4d227c5ba58a4a4c09
+Author: dz_paji <zhangqian2002@outlook.com>
+Date:   Sun Nov 19 16:26:44 2023 +0000
+
+    bug fix
+
+commit 6f3d032a103e928b418d0849c9ad0b34b25144a9
+Author: dz_paji <zhangqian2002@outlook.com>
+Date:   Mon Nov 13 11:42:40 2023 +0000
+
+    send traffic to edge network
+
+commit dc23d30bdb822b3b5303ea45ce3e63b0b40973b3
+Author: dz_paji <zhangqian2002@outlook.com>
+Date:   Mon Nov 13 00:10:45 2023 +0000
+
+    add filter, test a little bit
+
+commit ec34f7627a68a074b6048f4adc0549e5ff16ba48
+Author: dz_paji <zhangqian2002@outlook.com>
+Date:   Mon Nov 6 15:32:52 2023 +0000
+
+    add encapsulate
+
+commit 6d6d77aea71b140be597cfe240a708368cbfc63f
+Author: dz_paji <zhangqian2002@outlook.com>
+Date:   Mon Nov 6 11:16:53 2023 +0000
+
+    proto-41 development
+
+commit 7981ba226d7af03a09978621a15682dbc6dd1a21
+Author: dz_paji <zhangqian2002@outlook.com>
+Date:   Sun Nov 5 16:54:46 2023 +0000
+
+    rename packets
+
+commit 9cdbbc591480a26433dfeeebf6e6227535bd97e3
+Author: dz_paji <zhangqian2002@outlook.com>
+Date:   Sun Nov 5 15:24:02 2023 +0000
+
+    Update Meeting 30-10-2023.txt
+
+commit 045c0e8024dcefdfa7ada6b5d39aa47b90fa8c03
+Author: dz_paji <zhangqian2002@outlook.com>
+Date:   Mon Oct 30 19:52:28 2023 +0000
+
+    Create Meeting 30-10-2023.txt
+
+commit 0cb395c8f15bce94d039d49a5ad8f286b69f3aef
+Author: dz_paji <zhangqian2002@outlook.com>
+Date:   Mon Oct 30 12:27:20 2023 +0000
+
+    init commit
+
+commit 5086c626cc55fdef9650f64fe71d47515f29e16f
+Author: dz_paji <i@paji.uk>
+Date:   Mon Oct 30 12:18:48 2023 +0000
+
+    Initial commit

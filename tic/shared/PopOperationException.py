@@ -1,0 +1,2 @@
+class PopOperationException(Exception):
+    pass
